@@ -1,6 +1,6 @@
 # Spanner hybrid and vector search samples
 
-Spanner vector and hybrid search samples
+Overview
 
 - [Spanner documentation](https://cloud.google.com/spanner/docs/getting-started/set-up)
 - [Vector search](https://cloud.google.com/spanner/docs/find-k-nearest-neighbors)
