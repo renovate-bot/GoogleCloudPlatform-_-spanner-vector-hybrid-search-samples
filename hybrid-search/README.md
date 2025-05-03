@@ -1,10 +1,12 @@
 # Spanner hybrid search
 
-<<TODO: Overview of hybrid search>>
+Spanner supports both [vector search](https://cloud.google.com/spanner/docs/find-k-nearest-neighbors) and [full-text search](https://cloud.google.com/spanner/docs/full-text-search) (FTS). In some scenarios, it may be beneficial to combine FTS and vector search. In this sample, we'll walk through an approach for performing hybrid searches using Spanner.
 
 ## Schema
 
-### Products table and FTS search index (TODO: link to docs)
+Let's first create a basic schema for a table called `products` which we'll use to store a toy catalog along with a description of each toy.
+
+### Products table and FTS search index
 
 ```
 CREATE TABLE products (
@@ -30,13 +32,65 @@ OPTIONS ( endpoint="//aiplatform.googleapis.com/projects/362376585789/locations/
 
 ## Data generation
 
-We'll use Gemini to generate product descriptions that we can then use to index and search for our demo.
+We'll use Gemini 2.5 Pro to generate product descriptions that we can then use to index and search for our demo.
 
-<<TODO: Gemini prompt to generate product descriptions>>
+```
+Given the following schema, could you please generate 10 insert statements for sample data into this table? The items being stored are children's toys. Feel free to generate made up values for the description column. Use the embeddings model below to generate the vector embeddings.
+
+CREATE TABLE products (
+id INT64,
+description STRING(MAX),
+description_tokens TOKENLIST AS (TOKENIZE_FULLTEXT(description)) HIDDEN,
+embedding ARRAY<FLOAT32>(vector_length=>768),
+) PRIMARY KEY(id);
+
+CREATE OR REPLACE MODEL embedding_gen
+INPUT(content STRING(MAX))
+OUTPUT(embeddings STRUCT<values ARRAY<FLOAT32>>)
+REMOTE
+OPTIONS ( endpoint="//aiplatform.googleapis.com/projects/362376585789/locations/us-central1/publishers/google/models/text-embedding-004"
+);
+```
+
+Result:
+
+```
+INSERT INTO products (id, description, embedding) VALUES
+(1, 'Ultra-soft and huggable plush teddy bear, a perfect companion for children. Classic brown color with a cheerful red ribbon.', (SELECT embeddings.values FROM embedding_gen(INPUT(content => 'Ultra-soft and huggable plush teddy bear, a perfect companion for children. Classic brown color with a cheerful red ribbon.'))));
+
+INSERT INTO products (id, description, embedding) VALUES
+(2, 'Set of 100 natural wooden building blocks in various shapes and sizes. Ideal for fostering creativity and developing fine motor skills in young builders.', (SELECT embeddings.values FROM embedding_gen(INPUT(content => 'Set of 100 natural wooden building blocks in various shapes and sizes. Ideal for fostering creativity and developing fine motor skills in young builders.'))));
+
+INSERT INTO products (id, description, embedding) VALUES
+(3, 'Sleek remote control sports car with full function controls (forward, backward, left, right). Bright yellow finish, designed for speed and fun.', (SELECT embeddings.values FROM embedding_gen(INPUT(content => 'Sleek remote control sports car with full function controls (forward, backward, left, right). Bright yellow finish, designed for speed and fun.'))));
+
+INSERT INTO products (id, description, embedding) VALUES
+(4, 'Charming three-story wooden dollhouse complete with 5 rooms of detailed miniature furniture. Encourages imaginative role-play.', (SELECT embeddings.values FROM embedding_gen(INPUT(content => 'Charming three-story wooden dollhouse complete with 5 rooms of detailed miniature furniture. Encourages imaginative role-play.'))));
+
+INSERT INTO products (id, description, embedding) VALUES
+(5, 'Double-sided children''s art easel featuring a chalkboard on one side and a magnetic dry-erase board on the other. Includes paper roll and clips.', (SELECT embeddings.values FROM embedding_gen(INPUT(content => 'Double-sided children''s art easel featuring a chalkboard on one side and a magnetic dry-erase board on the other. Includes paper roll and clips.'))));
+
+INSERT INTO products (id, description, embedding) VALUES
+(6, 'Classic battery-operated toy train set with steam locomotive, coal tender, passenger car, and 12 pieces of track to form a circular layout.', (SELECT embeddings.values FROM embedding_gen(INPUT(content => 'Classic battery-operated toy train set with steam locomotive, coal tender, passenger car, and 12 pieces of track to form a circular layout.'))));
+
+INSERT INTO products (id, description, embedding) VALUES
+(7, 'Detailed Tyrannosaurus Rex dinosaur action figure with articulated limbs and jaw. Made from durable, non-toxic plastic for long-lasting play.', (SELECT embeddings.values FROM embedding_gen(INPUT(content => 'Detailed Tyrannosaurus Rex dinosaur action figure with articulated limbs and jaw. Made from durable, non-toxic plastic for long-lasting play.'))));
+
+INSERT INTO products (id, description, embedding) VALUES
+(8, 'Educational learning tablet for kids featuring interactive games for letters, numbers, animals, and music. Touch-sensitive screen and colorful graphics.', (SELECT embeddings.values FROM embedding_gen(INPUT(content => 'Educational learning tablet for kids featuring interactive games for letters, numbers, animals, and music. Touch-sensitive screen and colorful graphics.'))));
+
+INSERT INTO products (id, description, embedding) VALUES
+(9, 'Inflatable bouncy castle with slide for backyard fun. Made from puncture-resistant material and includes an electric air blower for quick setup.', (SELECT embeddings.values FROM embedding_gen(INPUT(content => 'Inflatable bouncy castle with slide for backyard fun. Made from puncture-resistant material and includes an electric air blower for quick setup.'))));
+
+INSERT INTO products (id, description, embedding) VALUES
+(10, 'Beginner''s science experiment kit with 30 fun and safe activities. Includes lab coat, goggles, and all necessary chemicals and apparatus to explore basic chemistry and physics.', (SELECT embeddings.values FROM embedding_gen(INPUT(content => 'Beginner''s science experiment kit with 30 fun and safe activities. Includes lab coat, goggles, and all necessary chemicals and apparatus to explore basic chemistry and physics.'))));
+```
+
+Note that this is just an example. Feel free to generate more or less data for your needs. The data samples shown below are from inserts that were generated by us. Your results will look different based on the data you generate.
 
 ## Example 1: FTS performs better compared to vector search
 
-### FTS query (TODO: add context/explanation)
+### FTS query
 
 ```
 SELECT description
@@ -111,7 +165,7 @@ Results:
 ```
 ```
 
-## Example 3: Use RRF (TODO: Add links to docs)
+## Example 3: Use RRF
 
 ```
 @{optimizer_version=7}
