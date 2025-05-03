@@ -32,7 +32,7 @@ OPTIONS ( endpoint="//aiplatform.googleapis.com/projects/362376585789/locations/
 
 ## Data generation
 
-We'll use Gemini 2.5 Pro to generate product descriptions that we can then use to index and search for our demo.
+We'll use [Gemini](https://gemini.google.com/app) 2.5 Pro to generate product descriptions that we can then use to index and search for our demo.
 
 ```
 Given the following schema, could you please generate 10 insert statements for sample data into this table? The items being stored are children's toys. Feel free to generate made up values for the description column. Use the embeddings model below to generate the vector embeddings.
