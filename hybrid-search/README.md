@@ -2,6 +2,18 @@
 
 Spanner supports both [vector search](https://cloud.google.com/spanner/docs/find-k-nearest-neighbors) and [full-text search](https://cloud.google.com/spanner/docs/full-text-search) (FTS). In some scenarios, it may be beneficial to combine FTS and vector search. In this sample, we'll walk through an approach for performing hybrid searches using Spanner.
 
+## Getting started
+
+In order to run the queries in this sample, you first need to go through the following steps:
+
+1. [Select or create a Cloud Platform project](https://console.cloud.google.com/project)
+2. [Enable billing for your project](https://cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project)
+3. [Enable the Google Cloud Spanner API](https://console.cloud.google.com/flows/enableapi?apiid=spanner.googleapis.com)
+4. [Setup Authentication](https://googleapis.dev/python/google-api-core/latest/auth.html)
+5. [Familiarize yourself with Spanner Studio](https://cloud.google.com/spanner/docs/manage-data-using-console)
+
+NOTE: You can run the queries below using Spanner Studio.
+
 ## Schema
 
 Let's first create a basic schema for a table called `products` which we'll use to store a toy catalog along with a description of each toy.
