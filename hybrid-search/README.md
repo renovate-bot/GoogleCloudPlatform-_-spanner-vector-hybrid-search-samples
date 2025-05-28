@@ -177,7 +177,7 @@ Results:
 ```
 ```
 
-## Example 3: Use RRF
+## Example 3: Simple re-ranking (no ML model involved)
 
 ```
 @{optimizer_version=7}
@@ -222,9 +222,11 @@ Results:
 ```
 ```
 
-## Example 4: Simple re-ranking
+## Example 4: RRF (w/ ML model from Hugging Face)
 
 ### Let's create our re-ranker model first
+
+The re-ranker model we're using is from Hugging Face. The name of the model is 'bge-reranker-v2-m3-1748472166957'. Please see [Use Hugging Face Models](https://cloud.google.com/vertex-ai/generative-ai/docs/open-models/use-hugging-face-models) for more information on how to deploy and use it on VertexAI in your GCP project. Once deployed, you can reference it via the endpoint attribute of `CREATE MODEL` DDL statement as shown below.
 
 ```
 CREATE OR REPLACE MODEL reranker
@@ -232,7 +234,7 @@ INPUT (text string(max), text_pair string(max))
 OUTPUT (score FLOAT32)
 REMOTE
 OPTIONS (
-endpoint = '//aiplatform.googleapis.com/projects/362376585789/locations/us-central1/endpoints/3831807918404009984'
+endpoint = '//aiplatform.googleapis.com/projects/<your project id>/locations/<your region>/endpoints/<your endpoint id>'
 );
 ```
 
