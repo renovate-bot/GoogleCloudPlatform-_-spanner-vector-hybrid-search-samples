@@ -31,7 +31,9 @@ embedding ARRAY<FLOAT32>(vector_length=>768),
 CREATE SEARCH INDEX si_desc ON products(description_tokens);
 ```
 
-### Model to generate embeddings for vector search (TODO: link to docs)
+### Model to generate embeddings for vector search
+
+Documentation [here](https://cloud.google.com/spanner/docs/ml-tutorial-embeddings#generate_and_store_text_embeddings)
 
 ```
 CREATE OR REPLACE MODEL embedding_gen
