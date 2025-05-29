@@ -179,7 +179,7 @@ Results:
 ```
 ```
 
-## Example 3: Simple re-ranking (no ML model involved)
+## Example 3: Simple ranking (no ML model involved)
 
 ```
 @{optimizer_version=7}
