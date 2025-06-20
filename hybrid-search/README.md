@@ -159,6 +159,8 @@ LIMIT 200;
 
 Results:
 ```
+"LEGO Friends Olivia's Mission Vehicle - A space-themed mission vehicle with a mini-robot and telescope, great for kids ages 8+."
+"LEGO Ninjago Galaxy Battle Set - A space-themed battle scene with ninja characters, recommended for fans ages 8+."
 ```
 
 ### Vector search
@@ -175,8 +177,21 @@ ORDER BY COSINE_DISTANCE(embedding, vector.values)
 LIMIT 200;
 ```
 
-Results:
+Results (200):
 ```
+"LEGO Creator Space Shuttle Adventure - A classic space shuttle build with astronauts and satellite, great for ages 8+."
+"LEGO Creator Spaceship Explorer - A 3-in-1 spaceship with options to build a space mech or shuttle, ideal for ages 8+."
+"LEGO Juniors Space Mission - A beginner space-themed LEGO set featuring astronauts, rocket ships, and planets, ideal for ages 4-7."
+"LEGO City Mars Space Station - A modular space station with multiple rooms, mini astronauts, and a shuttle, recommended for ages 8+."
+"LEGO Creator Space Robot - A buildable robot that can transform into space vehicles, ideal for ages 7+."
+"LEGO Classic Space Bricks Set - A classic brick box with simple instructions to create space objects, designed for ages 4+."
+"LEGO Space Team Adventure - Includes mini astronauts, rovers, and a small rocket, designed for ages 6+."
+"LEGO Junior Space Adventure Set - A beginner-friendly LEGO set with mini astronauts and space vehicles, ideal for ages 4+."
+"LEGO City Satellite Service Mission - A mini shuttle and satellite repair mission set, designed for young astronauts aged 8+."
+"LEGO City Satellite Service Mission - A small, easy-to-build space shuttle and satellite set, ideal for ages 5+."
+"LEGO Duplo Space Explorers - A set with an astronaut, moon, and small spaceship, perfect for ages 4+."
+"LEGO Creator Star Explorer - A mini spaceship with astronaut figure, suitable for ages 5+."
+...
 ```
 
 ## Example 3: Simple ranking (no ML model involved)
@@ -220,8 +235,16 @@ ORDER BY rrf_score DESC
 LIMIT 50;
 ```
 
-Results:
+Results (50):
 ```
+0.027031740495291244,"LEGO Ninjago Galaxy Battle Set - A space-themed battle scene with ninja characters, recommended for fans ages 8+."
+0.026767676767676767,"LEGO Friends Olivia's Mission Vehicle - A space-themed mission vehicle with a mini-robot and telescope, great for kids ages 8+."
+0.016666666666666666,"LEGO Creator Space Shuttle Adventure - A classic space shuttle build with astronauts and satellite, great for ages 8+."
+0.01639344262295082,"LEGO Creator Spaceship Explorer - A 3-in-1 spaceship with options to build a space mech or shuttle, ideal for ages 8+."
+0.016129032258064516,"LEGO Juniors Space Mission - A beginner space-themed LEGO set featuring astronauts, rocket ships, and planets, ideal for ages 4-7."
+0.015873015873015872,"LEGO City Mars Space Station - A modular space station with multiple rooms, mini astronauts, and a shuttle, recommended for ages 8+."
+0.015625,"LEGO Creator Space Robot - A buildable robot that can transform into space vehicles, ideal for ages 7+."
+0.015384615384615385,"LEGO Classic Space Bricks Set - A classic brick box with simple instructions to create space objects, designed for ages 4+."
 ```
 
 ## Example 4: RRF (w/ ML model from Hugging Face)
@@ -291,4 +314,14 @@ LIMIT 10;
 
 Results:
 ```
+0.9999020099639893,"LEGO Friends Olivia's Mission Vehicle - A space-themed mission vehicle with a mini-robot and telescope, great for kids ages 8+."
+0.9998645782470703,"LEGO Ninjago Galaxy Battle Set - A space-themed battle scene with ninja characters, recommended for fans ages 8+."
+0.9998202919960022,"LEGO Creator Space Shuttle Adventure - A classic space shuttle build with astronauts and satellite, great for ages 8+."
+0.9997809529304504,"LEGO Friends Space Research Lab - A research lab with experiments, space rover, and astronaut figures, perfect for ages 8+."
+0.9997766613960266,"LEGO City Mars Space Station - A modular space station with multiple rooms, mini astronauts, and a shuttle, recommended for ages 8+."
+0.9997122883796692,"LEGO City Deep Space Rocket and Launch Control - A detailed rocket and launch station set with mini-figures, ideal for space exploration fans ages 8+."
+0.9996609687805176,"LEGO City Lunar Roving Vehicle - A lunar rover with functional wheels and space tools, recommended for kids ages 8+."
+0.9995812773704529,"LEGO Creator Space Mining Mech - A 3-in-1 set featuring a mining mech, space explorer, and alien landscape, suited for ages 8+."
+0.9994454979896545,"LEGO Technic Mini Space Shuttle - A compact and functional space shuttle with moving parts, designed for ages 8+."
+0.9994049072265625,"LEGO Creator Spaceship Explorer - A 3-in-1 spaceship with options to build a space mech or shuttle, ideal for ages 8+."
 ```
