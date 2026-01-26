@@ -1,0 +1,23 @@
+# Development and testing dependencies
+# Install with: pip install -r requirements-dev.txt
+
+# Include production dependencies
+-r requirements.txt
+
+# Testing framework
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.0.0
+
+# FastAPI testing
+httpx>=0.26.0
+
+# Testcontainers for Spanner emulator integration tests
+testcontainers>=4.0.0
+
+# Mocking
+#unittest-mock>=1.4.0
+
+# Type checking (optional)
+mypy>=1.8.0
+types-requests>=2.31.0

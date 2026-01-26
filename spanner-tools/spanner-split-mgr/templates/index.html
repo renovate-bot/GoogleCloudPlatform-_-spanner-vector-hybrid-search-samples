@@ -1,0 +1,1483 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Spanner Split Points Manager{% endblock %}
+
+{% block content %}
+<div x-data="splitManager()" x-init="init()" class="space-y-6">
+    <!-- Status Banner -->
+    {% if not is_configured %}
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-yellow-700">
+                    Spanner not configured. <a href="/settings" class="font-medium underline">Configure settings</a> to connect to your database.
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-4">
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-sm font-medium text-gray-500 truncate">Total Entities</dt>
+                <dd class="mt-1 text-3xl font-semibold text-gray-900" x-text="entities.length"></dd>
+            </div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-sm font-medium text-gray-500 truncate">Synced Splits</dt>
+                <dd class="mt-1 text-3xl font-semibold text-green-600" x-text="totalSynced"></dd>
+            </div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-sm font-medium text-gray-500 truncate">Pending Adds</dt>
+                <dd class="mt-1 text-3xl font-semibold text-blue-600" x-text="totalPendingAdds"></dd>
+            </div>
+        </div>
+        <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="px-4 py-5 sm:p-6">
+                <dt class="text-sm font-medium text-gray-500 truncate">Pending Deletes</dt>
+                <dd class="mt-1 text-3xl font-semibold text-red-600" x-text="totalPendingDeletes"></dd>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="bg-white shadow rounded-lg p-4">
+        <div class="flex flex-wrap gap-3 items-center justify-between">
+            <div class="flex gap-3 items-center">
+                <!-- Back button when in detail view -->
+                <template x-if="currentView === 'detail'">
+                    <button
+                        @click="goBackToSummary()"
+                        class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                        <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Back to Entities
+                    </button>
+                </template>
+
+                <!-- Current entity info when in detail view -->
+                <template x-if="currentView === 'detail' && selectedEntity">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg font-semibold text-gray-900" x-text="selectedEntity.entity_name"></span>
+                        <span
+                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                            :class="selectedEntity.entity_type === 'TABLE' ? 'bg-purple-100 text-purple-800' : 'bg-indigo-100 text-indigo-800'"
+                            x-text="selectedEntity.entity_type"
+                        ></span>
+                        <template x-if="selectedEntity.parent_table">
+                            <span class="text-sm text-gray-500">on <span x-text="selectedEntity.parent_table"></span></span>
+                        </template>
+                        <!-- Key format badge -->
+                        <template x-if="entitySchema">
+                            <span
+                                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                :class="entitySchema.is_composite ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'"
+                                x-text="entitySchema.is_composite ? 'Composite Key' : 'Single Key'"
+                            ></span>
+                        </template>
+                    </div>
+                </template>
+
+                <template x-if="currentView === 'detail'">
+                    <button
+                        @click="showAddForm = !showAddForm"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                        <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Add Split(s)
+                    </button>
+                </template>
+
+                <button
+                    @click="refresh()"
+                    :disabled="loading"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                    <svg class="h-4 w-4 mr-2" :class="{'animate-spin': loading}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+            <div class="flex gap-3">
+                <template x-if="totalPendingAdds > 0 || totalPendingDeletes > 0">
+                    <div x-data="{ confirming: false, timeout: null }" class="inline-flex">
+                        <button
+                            x-show="!confirming"
+                            @click="confirming = true; timeout = setTimeout(() => confirming = false, 3000)"
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                            Clear Pending
+                        </button>
+                        <div x-show="confirming" x-transition class="inline-flex items-center gap-2">
+                            <button
+                                @click="clearTimeout(timeout); confirming = false; clearPending()"
+                                class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md bg-orange-600 text-white hover:bg-orange-700"
+                            >
+                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                Confirm Clear
+                            </button>
+                            <button
+                                @click="clearTimeout(timeout); confirming = false"
+                                class="text-gray-500 hover:text-gray-700 p-1"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+                <template x-if="totalPendingAdds > 0 || totalPendingDeletes > 0">
+                    <button
+                        @click="syncToSpanner()"
+                        :disabled="syncLoading"
+                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                    >
+                        <svg x-show="syncLoading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span x-text="syncLoading ? 'Syncing...' : 'Sync to Spanner'"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+
+        <!-- Sync Result -->
+        <template x-if="syncResult">
+            <div class="mt-4">
+                <div x-show="syncResult.success" class="bg-green-50 border-l-4 border-green-400 p-4 rounded">
+                    <div class="flex justify-between">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-green-700">
+                                    <strong>Sync successful!</strong> <span x-text="syncResult.message"></span>
+                                </p>
+                            </div>
+                        </div>
+                        <button @click="syncResult = null" class="text-green-500 hover:text-green-700">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div x-show="!syncResult.success" class="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+                    <div class="flex justify-between">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-red-700">
+                                    <strong>Sync failed!</strong> <span x-text="syncResult.message"></span>
+                                </p>
+                                <template x-if="syncResult.errors && syncResult.errors.length > 0">
+                                    <div class="mt-2">
+                                        <p class="text-sm font-medium text-red-700">Error details:</p>
+                                        <ul class="mt-1 list-disc list-inside text-sm text-red-600 space-y-1">
+                                            <template x-for="error in syncResult.errors" :key="error">
+                                                <li x-text="error" class="break-words"></li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <button @click="syncResult = null" class="text-red-500 hover:text-red-700">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Add Split Form (only in detail view) -->
+        <div x-show="showAddForm && currentView === 'detail'" x-cloak x-transition class="mt-4 p-4 bg-gray-50 rounded-lg">
+            <!-- Mode Toggle -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Split Mode</label>
+                <div class="flex gap-4">
+                    <label class="inline-flex items-center">
+                        <input
+                            type="radio"
+                            x-model="splitMode"
+                            value="single"
+                            class="form-radio h-4 w-4 text-blue-600"
+                        >
+                        <span class="ml-2 text-sm text-gray-700">Single Split</span>
+                    </label>
+                    <label class="inline-flex items-center" :class="{'opacity-50': !rangeSupported}">
+                        <input
+                            type="radio"
+                            x-model="splitMode"
+                            value="range"
+                            :disabled="!rangeSupported"
+                            class="form-radio h-4 w-4 text-blue-600"
+                        >
+                        <span class="ml-2 text-sm text-gray-700">Range Split</span>
+                        <template x-if="!rangeSupported && rangeNotSupportedReason">
+                            <span class="ml-2 text-xs text-amber-600" x-text="'(' + rangeNotSupportedReason + ')'"></span>
+                        </template>
+                    </label>
+                </div>
+            </div>
+
+            <!-- SINGLE SPLIT FORM -->
+            <template x-if="splitMode === 'single'">
+                <form @submit.prevent="addSplit()" class="space-y-4">
+                    <!-- TABLE SPLIT FORM -->
+                    <template x-if="selectedEntity?.entity_type === 'TABLE'">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label for="table_name" class="block text-sm font-medium text-gray-700">Table Name</label>
+                                <input
+                                    type="text"
+                                    x-model="newSplit.table_name"
+                                    id="table_name"
+                                    readonly
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm bg-gray-100 sm:text-sm px-3 py-2 border"
+                                >
+                            </div>
+                            <div>
+                                <label for="split_value" class="block text-sm font-medium text-gray-700">Table Key (Split Value) <span class="text-red-500">*</span></label>
+                                <input
+                                    type="text"
+                                    x-model="newSplit.split_value"
+                                    id="split_value"
+                                    required
+                                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 border"
+                                    placeholder="e.g., 12345 (comma-separated for composite keys)"
+                                >
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- INDEX SPLIT FORM -->
+                    <template x-if="selectedEntity?.entity_type === 'INDEX'">
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label for="index_name" class="block text-sm font-medium text-gray-700">Index Name</label>
+                                    <input
+                                        type="text"
+                                        x-model="newSplit.index_name"
+                                        id="index_name"
+                                        readonly
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm bg-gray-100 sm:text-sm px-3 py-2 border"
+                                    >
+                                </div>
+                                <div>
+                                    <label for="index_key" class="block text-sm font-medium text-gray-700">Index Key <span class="text-red-500">*</span></label>
+                                    <input
+                                        type="text"
+                                        x-model="newSplit.index_key"
+                                        id="index_key"
+                                        required
+                                        class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 border"
+                                        placeholder="e.g., US (comma-separated for composite index keys)"
+                                    >
+                                </div>
+                            </div>
+                            <div class="border-t border-gray-200 pt-4">
+                                <p class="text-sm text-gray-500 mb-3">Optionally, specify the table key to split at a specific primary key within the index split:</p>
+                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label for="table_name_idx" class="block text-sm font-medium text-gray-700">Table Name</label>
+                                        <input
+                                            type="text"
+                                            x-model="newSplit.table_name"
+                                            id="table_name_idx"
+                                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 border"
+                                            :placeholder="selectedEntity?.parent_table || 'Parent table name'"
+                                        >
+                                    </div>
+                                    <div>
+                                        <label for="split_value_idx" class="block text-sm font-medium text-gray-700">Table Key (optional)</label>
+                                        <input
+                                            type="text"
+                                            x-model="newSplit.split_value"
+                                            id="split_value_idx"
+                                            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 border"
+                                            placeholder="e.g., 12345 (comma-separated for composite keys)"
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            @click="showAddForm = false"
+                            class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            class="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+                        >
+                            Stage Split
+                        </button>
+                    </div>
+                </form>
+            </template>
+
+            <!-- RANGE SPLIT FORM -->
+            <template x-if="splitMode === 'range'">
+                <div class="space-y-4">
+                    <!-- Range Result Message -->
+                    <template x-if="rangeResult">
+                        <div
+                            class="p-4 rounded-lg"
+                            :class="rangeResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'"
+                        >
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0">
+                                    <template x-if="rangeResult.success">
+                                        <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                        </svg>
+                                    </template>
+                                    <template x-if="!rangeResult.success">
+                                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                        </svg>
+                                    </template>
+                                </div>
+                                <div class="ml-3 flex-1">
+                                    <p class="text-sm font-medium" :class="rangeResult.success ? 'text-green-800' : 'text-red-800'" x-text="rangeResult.message"></p>
+                                    <template x-if="rangeResult.warnings && rangeResult.warnings.length > 0">
+                                        <ul class="mt-2 list-disc list-inside text-sm text-amber-600">
+                                            <template x-for="warning in rangeResult.warnings" :key="warning">
+                                                <li x-text="warning"></li>
+                                            </template>
+                                        </ul>
+                                    </template>
+                                    <template x-if="rangeResult.errors && rangeResult.errors.length > 0">
+                                        <ul class="mt-2 list-disc list-inside text-sm text-red-600">
+                                            <template x-for="error in rangeResult.errors" :key="error">
+                                                <li x-text="error"></li>
+                                            </template>
+                                        </ul>
+                                    </template>
+                                </div>
+                                <button @click="rangeResult = null" class="ml-2 text-gray-400 hover:text-gray-600">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="space-y-4">
+                        <!-- Start Value -->
+                        <div>
+                            <label for="range_start" class="block text-sm font-medium text-gray-700">Start Value <span class="text-red-500">*</span></label>
+                            <div class="mt-1 flex gap-2">
+                                <div class="flex-1 relative">
+                                    <input
+                                        type="text"
+                                        x-model="rangeSplit.start_value"
+                                        id="range_start"
+                                        required
+                                        @input="previewRangeSplits()"
+                                        class="block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border"
+                                        :class="getUuidValidationClass(rangeSplit.start_value)"
+                                        :placeholder="isUuidRangeType ? 'e.g., 00000000-0000-0000-0000-000000000000' : 'e.g., 1000'"
+                                    >
+                                    <template x-if="isUuidRangeType && rangeSplit.start_value">
+                                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                            <template x-if="isValidUuid(rangeSplit.start_value)">
+                                                <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                </svg>
+                                            </template>
+                                            <template x-if="!isValidUuid(rangeSplit.start_value)">
+                                                <svg class="h-4 w-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                                </svg>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                                <template x-if="isUuidRangeType">
+                                    <div class="flex gap-1">
+                                        <button
+                                            type="button"
+                                            @click="rangeSplit.start_value = '00000000-0000-0000-0000-000000000000'; previewRangeSplits()"
+                                            class="px-2 py-1 text-xs font-medium rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                                            title="Set to zero UUID"
+                                        >
+                                            Zero
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="rangeSplit.start_value = 'ffffffff-ffff-ffff-ffff-ffffffffffff'; previewRangeSplits()"
+                                            class="px-2 py-1 text-xs font-medium rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                                            title="Set to max UUID"
+                                        >
+                                            Max
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="rangeSplit.start_value = generateRandomUuid(); previewRangeSplits()"
+                                            class="px-2 py-1 text-xs font-medium rounded border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 whitespace-nowrap"
+                                            title="Generate random UUID"
+                                        >
+                                            Random
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                            <template x-if="isUuidRangeType && rangeSplit.start_value && !isValidUuid(rangeSplit.start_value)">
+                                <p class="mt-1 text-xs text-red-600">Invalid UUID format</p>
+                            </template>
+                        </div>
+
+                        <!-- End Value -->
+                        <div>
+                            <label for="range_end" class="block text-sm font-medium text-gray-700">End Value <span class="text-red-500">*</span></label>
+                            <div class="mt-1 flex gap-2">
+                                <div class="flex-1 relative">
+                                    <input
+                                        type="text"
+                                        x-model="rangeSplit.end_value"
+                                        id="range_end"
+                                        required
+                                        @input="previewRangeSplits()"
+                                        class="block w-full rounded-md shadow-sm sm:text-sm px-3 py-2 border"
+                                        :class="getUuidValidationClass(rangeSplit.end_value)"
+                                        :placeholder="isUuidRangeType ? 'e.g., ffffffff-ffff-ffff-ffff-ffffffffffff' : 'e.g., 10000'"
+                                    >
+                                    <template x-if="isUuidRangeType && rangeSplit.end_value">
+                                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                            <template x-if="isValidUuid(rangeSplit.end_value)">
+                                                <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                                </svg>
+                                            </template>
+                                            <template x-if="!isValidUuid(rangeSplit.end_value)">
+                                                <svg class="h-4 w-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                                </svg>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+                                <template x-if="isUuidRangeType">
+                                    <div class="flex gap-1">
+                                        <button
+                                            type="button"
+                                            @click="rangeSplit.end_value = '00000000-0000-0000-0000-000000000000'; previewRangeSplits()"
+                                            class="px-2 py-1 text-xs font-medium rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                                            title="Set to zero UUID"
+                                        >
+                                            Zero
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="rangeSplit.end_value = 'ffffffff-ffff-ffff-ffff-ffffffffffff'; previewRangeSplits()"
+                                            class="px-2 py-1 text-xs font-medium rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                                            title="Set to max UUID"
+                                        >
+                                            Max
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="rangeSplit.end_value = generateRandomUuid(); previewRangeSplits()"
+                                            class="px-2 py-1 text-xs font-medium rounded border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 whitespace-nowrap"
+                                            title="Generate random UUID"
+                                        >
+                                            Random
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                            <template x-if="isUuidRangeType && rangeSplit.end_value && !isValidUuid(rangeSplit.end_value)">
+                                <p class="mt-1 text-xs text-red-600">Invalid UUID format</p>
+                            </template>
+                        </div>
+
+                        <!-- Number of Splits -->
+                        <div>
+                            <label for="num_splits" class="block text-sm font-medium text-gray-700">Number of Splits <span class="text-red-500">*</span></label>
+                            <input
+                                type="number"
+                                x-model.number="rangeSplit.num_splits"
+                                id="num_splits"
+                                required
+                                min="2"
+                                max="100"
+                                @input="previewRangeSplits()"
+                                class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2 border"
+                            >
+                        </div>
+
+                        <!-- Include Boundaries Checkbox -->
+                        <div>
+                            <label class="inline-flex items-center">
+                                <input
+                                    type="checkbox"
+                                    x-model="rangeSplit.include_boundaries"
+                                    @change="previewRangeSplits()"
+                                    class="form-checkbox h-4 w-4 text-blue-600 rounded"
+                                >
+                                <span class="ml-2 text-sm text-gray-700">Include Boundaries</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Preview Section -->
+                    <template x-if="rangePreview.length > 0">
+                        <div class="bg-white border border-gray-200 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">Preview</h4>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="(value, idx) in rangePreview" :key="idx">
+                                    <span
+                                        class="inline-flex items-center px-2.5 py-1 rounded text-xs font-mono"
+                                        :class="value.startsWith('Error') ? 'bg-red-100 text-red-800' : (value.startsWith('UUID range') ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800')"
+                                        x-text="value"
+                                    ></span>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Range Validation Error -->
+                    <template x-if="getRangeValidationError()">
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                            <div class="flex items-center">
+                                <svg class="h-4 w-4 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                </svg>
+                                <span class="text-sm text-red-700" x-text="getRangeValidationError()"></span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div class="flex justify-end gap-3">
+                        <button
+                            type="button"
+                            @click="showAddForm = false; resetRangeForm()"
+                            class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            @click="addRangeSplits()"
+                            :disabled="rangeLoading || !rangeSplit.start_value || !rangeSplit.end_value || rangeSplit.num_splits < 2 || !isRangeValid()"
+                            class="px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <span x-show="!rangeLoading">Create Range Splits</span>
+                            <span x-show="rangeLoading" class="inline-flex items-center">
+                                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Creating...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- SUMMARY VIEW: Entity Table -->
+    <template x-if="currentView === 'summary'">
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-medium text-gray-900">Entities</h2>
+                <p class="mt-1 text-sm text-gray-500">Click on an entity to view its split points</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Table</th>
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Total Splits</th>
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Synced</th>
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Pending Add</th>
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Pending Delete</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <template x-if="entities.length === 0">
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center text-sm text-gray-500">
+                                    No entities with split points found. Connect to Spanner or add new splits.
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-for="entity in entities" :key="entity.entity_name + '-' + entity.entity_type">
+                            <tr
+                                @click="selectEntity(entity)"
+                                class="hover:bg-gray-50 cursor-pointer transition-colors"
+                            >
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-full" :class="entity.entity_type === 'TABLE' ? 'bg-purple-100' : 'bg-indigo-100'">
+                                            <template x-if="entity.entity_type === 'TABLE'">
+                                                <svg class="h-4 w-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                                </svg>
+                                            </template>
+                                            <template x-if="entity.entity_type === 'INDEX'">
+                                                <svg class="h-4 w-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+                                                </svg>
+                                            </template>
+                                        </div>
+                                        <div class="ml-3">
+                                            <p class="text-sm font-medium text-gray-900" x-text="entity.entity_name"></p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span
+                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                        :class="entity.entity_type === 'TABLE' ? 'bg-purple-100 text-purple-800' : 'bg-indigo-100 text-indigo-800'"
+                                        x-text="entity.entity_type"
+                                    ></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span x-text="entity.parent_table || '-'"></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="text-sm font-semibold text-gray-900" x-text="entity.total_splits"></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800" x-text="entity.synced_count"></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span
+                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                        :class="entity.pending_add_count > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'"
+                                        x-text="entity.pending_add_count"
+                                    ></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <span
+                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                                        :class="entity.pending_delete_count > 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-500'"
+                                        x-text="entity.pending_delete_count"
+                                    ></span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-gray-50 px-6 py-3 border-t border-gray-200">
+                <p class="text-sm text-gray-500">
+                    <span x-text="entities.length"></span> entity(ies)
+                </p>
+            </div>
+        </div>
+    </template>
+
+    <!-- DETAIL VIEW: Key Schema Info Panel -->
+    <template x-if="currentView === 'detail' && entitySchema">
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-sm font-medium text-gray-900">Key Schema</h3>
+                <p class="mt-1 text-xs text-gray-500">Use this format when adding split values</p>
+            </div>
+            <div class="px-6 py-4">
+                <!-- For TABLE entities -->
+                <template x-if="entitySchema.entity_type === 'TABLE'">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-sm font-medium text-gray-700">Primary Key:</span>
+                            <span
+                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                :class="entitySchema.is_composite ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'"
+                                x-text="entitySchema.is_composite ? 'Composite' : 'Single'"
+                            ></span>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="(col, idx) in entitySchema.key_columns" :key="col.column_name">
+                                    <div class="inline-flex items-center bg-white border border-gray-200 rounded-md px-3 py-1.5 shadow-sm">
+                                        <span class="text-xs text-gray-400 mr-2" x-text="(idx + 1) + '.'"></span>
+                                        <span class="text-sm font-medium text-gray-900" x-text="col.column_name"></span>
+                                        <span class="mx-1.5 text-gray-300">|</span>
+                                        <span class="text-xs text-blue-600 font-mono" x-text="col.spanner_type"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <p class="mt-3 text-xs text-gray-500">
+                                <template x-if="entitySchema.is_composite">
+                                    <span>Enter values as comma-separated, e.g.: <code class="bg-gray-100 px-1 rounded">value1, value2</code></span>
+                                </template>
+                                <template x-if="!entitySchema.is_composite">
+                                    <span>Enter a single value for the split point</span>
+                                </template>
+                            </p>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- For INDEX entities -->
+                <template x-if="entitySchema.entity_type === 'INDEX'">
+                    <div class="space-y-4">
+                        <!-- Index Key -->
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-sm font-medium text-gray-700">Index Key:</span>
+                                <span
+                                    class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                    :class="entitySchema.is_composite ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'"
+                                    x-text="entitySchema.is_composite ? 'Composite' : 'Single'"
+                                ></span>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="(col, idx) in entitySchema.key_columns" :key="col.column_name">
+                                        <div class="inline-flex items-center bg-white border border-gray-200 rounded-md px-3 py-1.5 shadow-sm">
+                                            <span class="text-xs text-gray-400 mr-2" x-text="(idx + 1) + '.'"></span>
+                                            <span class="text-sm font-medium text-gray-900" x-text="col.column_name"></span>
+                                            <span class="mx-1.5 text-gray-300">|</span>
+                                            <span class="text-xs text-indigo-600 font-mono" x-text="col.spanner_type"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                                <p class="mt-3 text-xs text-gray-500">
+                                    <template x-if="entitySchema.is_composite">
+                                        <span>Enter index key values as comma-separated, e.g.: <code class="bg-gray-100 px-1 rounded">value1, value2</code></span>
+                                    </template>
+                                    <template x-if="!entitySchema.is_composite">
+                                        <span>Enter a single value for the index key</span>
+                                    </template>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Parent Table Key (if available) -->
+                        <template x-if="entitySchema.parent_key_columns && entitySchema.parent_key_columns.length > 0">
+                            <div>
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-sm font-medium text-gray-700">Parent Table Key</span>
+                                    <span class="text-xs text-gray-500">(<span x-text="entitySchema.parent_table"></span>)</span>
+                                    <span
+                                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                                        :class="entitySchema.parent_key_columns.length > 1 ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'"
+                                        x-text="entitySchema.parent_key_columns.length > 1 ? 'Composite' : 'Single'"
+                                    ></span>
+                                </div>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="(col, idx) in entitySchema.parent_key_columns" :key="col.column_name">
+                                            <div class="inline-flex items-center bg-white border border-gray-200 rounded-md px-3 py-1.5 shadow-sm">
+                                                <span class="text-xs text-gray-400 mr-2" x-text="(idx + 1) + '.'"></span>
+                                                <span class="text-sm font-medium text-gray-900" x-text="col.column_name"></span>
+                                                <span class="mx-1.5 text-gray-300">|</span>
+                                                <span class="text-xs text-purple-600 font-mono" x-text="col.spanner_type"></span>
+                                            </div>
+                                        </template>
+                                    </div>
+                                    <p class="mt-3 text-xs text-gray-500">
+                                        Optional: Specify table key to split at a specific primary key within the index split
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <!-- DETAIL VIEW: Splits Table for Selected Entity -->
+    <template x-if="currentView === 'detail'">
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Split Value</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expires</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Initiator</th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <template x-if="splits.length === 0">
+                            <tr>
+                                <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">
+                                    No split points found for this entity.
+                                </td>
+                            </tr>
+                        </template>
+                        <template x-for="split in splits" :key="split.table_name + '-' + split.split_value">
+                            <tr :class="{
+                                'bg-blue-50': split.status === 'PENDING_ADD',
+                                'bg-red-50': split.status === 'PENDING_DELETE'
+                            }">
+                                <td class="px-6 py-4 text-sm text-gray-900 font-mono break-all">
+                                    <template x-if="split.index">
+                                        <div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs text-gray-500 font-sans">Index Key:</span>
+                                                <span x-text="split.split_value"></span>
+                                            </div>
+                                            <template x-if="split.table_key">
+                                                <div class="flex items-center gap-2 mt-1 text-gray-600">
+                                                    <span class="text-xs text-gray-500 font-sans">Table Key:</span>
+                                                    <span x-text="split.table_key"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template x-if="!split.index">
+                                        <span x-text="split.split_value"></span>
+                                    </template>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span x-show="split.status === 'SYNCED'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Synced
+                                    </span>
+                                    <span x-show="split.status === 'PENDING_ADD'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        Pending Add
+                                    </span>
+                                    <span x-show="split.status === 'PENDING_DELETE'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        Pending Delete
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span x-text="split.expire_time ? new Date(split.expire_time).toLocaleString() : '-'"></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span x-text="split.initiator || '-'"></span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <template x-if="split.status === 'SYNCED'">
+                                        <div x-data="{ confirming: false, timeout: null }" class="inline-flex">
+                                            <button
+                                                x-show="!confirming"
+                                                @click="confirming = true; timeout = setTimeout(() => confirming = false, 3000)"
+                                                class="text-red-600 hover:text-red-900"
+                                            >
+                                                Delete
+                                            </button>
+                                            <div x-show="confirming" x-transition class="inline-flex items-center gap-2">
+                                                <button
+                                                    @click="clearTimeout(timeout); confirming = false; markForDelete(split)"
+                                                    class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-red-600 text-white hover:bg-red-700"
+                                                >
+                                                    <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                    </svg>
+                                                    Confirm
+                                                </button>
+                                                <button
+                                                    @click="clearTimeout(timeout); confirming = false"
+                                                    class="text-gray-500 hover:text-gray-700"
+                                                >
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template x-if="split.status === 'PENDING_ADD' || split.status === 'PENDING_DELETE'">
+                                        <button
+                                            @click="cancelPending(split)"
+                                            class="text-gray-600 hover:text-gray-900"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </template>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Summary Footer -->
+            <div class="bg-gray-50 px-6 py-3 border-t border-gray-200">
+                <p class="text-sm text-gray-500">
+                    <span x-text="splits.length"></span> split point(s) for <span x-text="selectedEntity?.entity_name"></span>
+                </p>
+            </div>
+        </div>
+    </template>
+</div>
+
+<script>
+function splitManager() {
+    return {
+        // View state
+        currentView: 'summary', // 'summary' or 'detail'
+        selectedEntity: null,
+
+        // Data
+        entities: [],
+        splits: [],
+        entitySchema: null, // Key schema for the selected entity
+
+        // UI state
+        loading: false,
+        syncLoading: false,
+        showAddForm: false,
+        syncResult: null,
+        newSplit: {
+            table_name: '',
+            split_value: '',
+            index_name: '',
+            index_key: ''
+        },
+
+        // Range split state
+        splitMode: 'single', // 'single' or 'range'
+        rangeSupported: false,
+        rangeNotSupportedReason: '',
+        isUuidRangeType: false, // True if STRING or BYTES UUID range
+        rangeSplit: {
+            start_value: '',
+            end_value: '',
+            num_splits: 10,
+            include_boundaries: true
+        },
+        rangePreview: [],
+        rangeResult: null,
+        rangeLoading: false,
+
+        // Computed totals from entities
+        get totalSynced() {
+            return this.entities.reduce((sum, e) => sum + e.synced_count, 0);
+        },
+
+        get totalPendingAdds() {
+            return this.entities.reduce((sum, e) => sum + e.pending_add_count, 0);
+        },
+
+        get totalPendingDeletes() {
+            return this.entities.reduce((sum, e) => sum + e.pending_delete_count, 0);
+        },
+
+        async init() {
+            await this.refreshEntities();
+        },
+
+        async refresh() {
+            if (this.currentView === 'summary') {
+                await this.refreshEntities();
+            } else {
+                await this.refreshSplits();
+                await this.refreshEntities(); // Also refresh entities for totals
+            }
+        },
+
+        async refreshEntities() {
+            this.loading = true;
+            try {
+                const response = await fetch('/api/entities');
+                this.entities = await response.json();
+            } catch (error) {
+                console.error('Error fetching entities:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async refreshSplits() {
+            if (!this.selectedEntity) return;
+
+            this.loading = true;
+            try {
+                const params = new URLSearchParams({
+                    entity_name: this.selectedEntity.entity_name,
+                    entity_type: this.selectedEntity.entity_type
+                });
+                const response = await fetch(`/api/splits?${params}`);
+                this.splits = await response.json();
+            } catch (error) {
+                console.error('Error fetching splits:', error);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async fetchEntitySchema() {
+            if (!this.selectedEntity) return;
+
+            try {
+                const params = new URLSearchParams({
+                    entity_name: this.selectedEntity.entity_name,
+                    entity_type: this.selectedEntity.entity_type
+                });
+                const response = await fetch(`/api/entity-schema?${params}`);
+                this.entitySchema = await response.json();
+                // Check range support after schema is loaded
+                this.checkRangeSupport();
+            } catch (error) {
+                console.error('Error fetching entity schema:', error);
+                this.entitySchema = null;
+                this.rangeSupported = false;
+                this.rangeNotSupportedReason = 'Unable to fetch entity schema';
+            }
+        },
+
+        checkRangeSupport() {
+            // Reset range support state
+            this.rangeSupported = false;
+            this.rangeNotSupportedReason = '';
+            this.isUuidRangeType = false;
+
+            if (!this.entitySchema) {
+                this.rangeNotSupportedReason = 'Entity schema not available';
+                return;
+            }
+
+            // Check for composite keys
+            if (this.entitySchema.is_composite) {
+                this.rangeNotSupportedReason = 'Range splits are not supported for composite keys. Please add splits individually.';
+                return;
+            }
+
+            if (!this.entitySchema.key_columns || this.entitySchema.key_columns.length === 0) {
+                this.rangeNotSupportedReason = 'No key columns found';
+                return;
+            }
+
+            const keyColumn = this.entitySchema.key_columns[0];
+            const spannerType = keyColumn.spanner_type.toUpperCase();
+
+            // Check for INT64
+            if (spannerType === 'INT64') {
+                this.rangeSupported = true;
+                this.isUuidRangeType = false;
+                return;
+            }
+
+            // Check for STRING type with sufficient length for UUIDs (> 35)
+            if (spannerType.startsWith('STRING')) {
+                const match = spannerType.match(/STRING\((\d+|MAX)\)/i);
+                if (match) {
+                    const lengthStr = match[1];
+                    const length = lengthStr.toUpperCase() === 'MAX' ? 36 : parseInt(lengthStr);
+                    if (length > 35) {
+                        this.rangeSupported = true;
+                        this.isUuidRangeType = true;
+                        this.rangeNotSupportedReason = '';
+                        return;
+                    } else {
+                        this.rangeNotSupportedReason = `Column length (${length}) too short for UUIDs (need greater than 35)`;
+                        return;
+                    }
+                }
+            }
+
+            // Check for BYTES type with sufficient length for UUIDs (> 15)
+            if (spannerType.startsWith('BYTES')) {
+                const match = spannerType.match(/BYTES\((\d+|MAX)\)/i);
+                if (match) {
+                    const lengthStr = match[1];
+                    const length = lengthStr.toUpperCase() === 'MAX' ? 16 : parseInt(lengthStr);
+                    if (length > 15) {
+                        this.rangeSupported = true;
+                        this.isUuidRangeType = true;
+                        this.rangeNotSupportedReason = '';
+                        return;
+                    } else {
+                        this.rangeNotSupportedReason = `Column length (${length}) too short for UUIDs (need greater than 15)`;
+                        return;
+                    }
+                }
+            }
+
+            // Other types not supported
+            this.rangeNotSupportedReason = `Column type '${keyColumn.spanner_type}' not supported. Supported: INT64, STRING(>35) with UUIDs, BYTES(>15) with UUIDs.`;
+        },
+
+        previewRangeSplits() {
+            // Client-side preview for INT64
+            this.rangePreview = [];
+
+            if (!this.entitySchema || !this.entitySchema.key_columns || this.entitySchema.key_columns.length === 0) {
+                return;
+            }
+
+            const keyColumn = this.entitySchema.key_columns[0];
+            const spannerType = keyColumn.spanner_type.toUpperCase();
+
+            const start = this.rangeSplit.start_value.trim();
+            const end = this.rangeSplit.end_value.trim();
+            const numSplits = parseInt(this.rangeSplit.num_splits);
+
+            if (!start || !end || isNaN(numSplits) || numSplits < 2) {
+                return;
+            }
+
+            if (spannerType === 'INT64') {
+                try {
+                    const startInt = BigInt(start);
+                    const endInt = BigInt(end);
+
+                    if (startInt >= endInt) {
+                        this.rangePreview = ['Error: Start value must be less than end value'];
+                        return;
+                    }
+
+                    const values = [];
+                    if (this.rangeSplit.include_boundaries) {
+                        const step = (endInt - startInt) / BigInt(numSplits - 1);
+                        for (let i = 0; i < numSplits; i++) {
+                            if (i === 0) {
+                                values.push(startInt.toString());
+                            } else if (i === numSplits - 1) {
+                                values.push(endInt.toString());
+                            } else {
+                                values.push((startInt + step * BigInt(i)).toString());
+                            }
+                        }
+                    } else {
+                        const step = (endInt - startInt) / BigInt(numSplits + 1);
+                        for (let i = 1; i <= numSplits; i++) {
+                            values.push((startInt + step * BigInt(i)).toString());
+                        }
+                    }
+                    this.rangePreview = values;
+                } catch (e) {
+                    this.rangePreview = ['Error: Invalid integer values'];
+                }
+            } else if (spannerType.startsWith('STRING') || spannerType.startsWith('BYTES')) {
+                // For UUID strings/bytes, we can't easily preview client-side
+                // Just show a message that preview will be validated server-side
+                const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                if (!uuidPattern.test(start)) {
+                    this.rangePreview = ['Error: Start value is not a valid UUID format'];
+                    return;
+                }
+                if (!uuidPattern.test(end)) {
+                    this.rangePreview = ['Error: End value is not a valid UUID format'];
+                    return;
+                }
+                this.rangePreview = [`UUID range: ${numSplits} splits will be generated between ${start} and ${end}`];
+            }
+        },
+
+        isValidUuid(value) {
+            if (!value) return false;
+            const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            return uuidPattern.test(value.trim());
+        },
+
+        getUuidValidationClass(value) {
+            if (!this.isUuidRangeType) {
+                return 'border-gray-300 focus:ring-blue-500 focus:border-blue-500';
+            }
+            if (!value || !value.trim()) {
+                return 'border-gray-300 focus:ring-blue-500 focus:border-blue-500';
+            }
+            if (this.isValidUuid(value)) {
+                return 'border-green-500 focus:ring-green-500 focus:border-green-500 pr-10';
+            }
+            return 'border-red-500 focus:ring-red-500 focus:border-red-500 pr-10';
+        },
+
+        generateRandomUuid() {
+            // Generate a random UUID v4
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        },
+
+        isRangeValid() {
+            const start = this.rangeSplit.start_value?.trim();
+            const end = this.rangeSplit.end_value?.trim();
+
+            if (!start || !end) {
+                return false;
+            }
+
+            if (this.isUuidRangeType) {
+                // For UUID, validate format first
+                if (!this.isValidUuid(start) || !this.isValidUuid(end)) {
+                    return false;
+                }
+                // Compare UUIDs as strings (lexicographic comparison works for lowercase UUIDs)
+                return start.toLowerCase() < end.toLowerCase();
+            } else {
+                // For INT64, compare as numbers
+                try {
+                    const startInt = BigInt(start);
+                    const endInt = BigInt(end);
+                    return startInt < endInt;
+                } catch (e) {
+                    return false;
+                }
+            }
+        },
+
+        getRangeValidationError() {
+            const start = this.rangeSplit.start_value?.trim();
+            const end = this.rangeSplit.end_value?.trim();
+
+            if (!start || !end) {
+                return null;
+            }
+
+            if (this.isUuidRangeType) {
+                if (!this.isValidUuid(start) || !this.isValidUuid(end)) {
+                    return null; // Individual field errors handle this
+                }
+                if (start.toLowerCase() >= end.toLowerCase()) {
+                    return 'Start value must be less than end value';
+                }
+            } else {
+                try {
+                    const startInt = BigInt(start);
+                    const endInt = BigInt(end);
+                    if (startInt >= endInt) {
+                        return 'Start value must be less than end value';
+                    }
+                } catch (e) {
+                    return 'Invalid integer values';
+                }
+            }
+            return null;
+        },
+
+        async addRangeSplits() {
+            this.rangeLoading = true;
+            this.rangeResult = null;
+
+            try {
+                const body = {
+                    table_name: this.selectedEntity?.entity_type === 'INDEX'
+                        ? (this.selectedEntity?.parent_table || '')
+                        : this.selectedEntity?.entity_name,
+                    start_value: this.rangeSplit.start_value.trim(),
+                    end_value: this.rangeSplit.end_value.trim(),
+                    num_splits: parseInt(this.rangeSplit.num_splits),
+                    include_boundaries: this.rangeSplit.include_boundaries
+                };
+
+                // For index splits, add the index_name
+                if (this.selectedEntity?.entity_type === 'INDEX') {
+                    body.index_name = this.selectedEntity?.entity_name;
+                }
+
+                const response = await fetch('/api/splits/range', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                this.rangeResult = await response.json();
+
+                if (this.rangeResult.success) {
+                    // Reset form and refresh
+                    this.resetRangeForm();
+                    this.showAddForm = false;
+                    await this.refresh();
+                }
+            } catch (error) {
+                console.error('Error adding range splits:', error);
+                this.rangeResult = {
+                    success: false,
+                    message: 'Network error occurred',
+                    errors: [error.message]
+                };
+            } finally {
+                this.rangeLoading = false;
+            }
+        },
+
+        resetRangeForm() {
+            this.rangeSplit = {
+                start_value: '',
+                end_value: '',
+                num_splits: 10,
+                include_boundaries: true
+            };
+            this.rangePreview = [];
+            this.rangeResult = null;
+        },
+
+        formatKeySchema(keyColumns) {
+            if (!keyColumns || keyColumns.length === 0) return 'Unknown';
+            return keyColumns.map(col => `${col.column_name} (${col.spanner_type})`).join(', ');
+        },
+
+        selectEntity(entity) {
+            this.selectedEntity = entity;
+            this.currentView = 'detail';
+            this.entitySchema = null; // Clear previous schema
+            // Reset and pre-fill form fields based on entity type
+            this.newSplit = {
+                table_name: '',
+                split_value: '',
+                index_name: '',
+                index_key: ''
+            };
+            if (entity.entity_type === 'TABLE') {
+                this.newSplit.table_name = entity.entity_name;
+            } else {
+                // INDEX entity
+                this.newSplit.index_name = entity.entity_name;
+                this.newSplit.table_name = entity.parent_table || '';
+            }
+            this.refreshSplits();
+            this.fetchEntitySchema();
+        },
+
+        goBackToSummary() {
+            this.currentView = 'summary';
+            this.selectedEntity = null;
+            this.entitySchema = null;
+            this.splits = [];
+            this.showAddForm = false;
+            this.newSplit = {
+                table_name: '',
+                split_value: '',
+                index_name: '',
+                index_key: ''
+            };
+            // Reset range state
+            this.splitMode = 'single';
+            this.rangeSupported = false;
+            this.rangeNotSupportedReason = '';
+            this.isUuidRangeType = false;
+            this.resetRangeForm();
+            this.refreshEntities();
+        },
+
+        async addSplit() {
+            try {
+                // Build the request body based on entity type
+                const body = {
+                    table_name: this.newSplit.table_name || this.selectedEntity?.parent_table || '',
+                    split_value: this.newSplit.split_value,
+                    operation_type: 'ADD'
+                };
+
+                // For index splits, include index_name and index_key
+                if (this.selectedEntity?.entity_type === 'INDEX') {
+                    body.index_name = this.newSplit.index_name;
+                    body.index_key = this.newSplit.index_key;
+                }
+
+                const response = await fetch('/api/splits', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (response.ok) {
+                    // Reset form values but keep pre-filled fields
+                    this.newSplit.split_value = '';
+                    this.newSplit.index_key = '';
+                    this.showAddForm = false;
+                    await this.refresh();
+                }
+            } catch (error) {
+                console.error('Error adding split:', error);
+            }
+        },
+
+        async markForDelete(split) {
+            try {
+                const response = await fetch('/api/splits', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        table_name: split.table_name,
+                        split_value: split.split_value,
+                        operation_type: 'DELETE'
+                    })
+                });
+                if (response.ok) {
+                    await this.refresh();
+                }
+            } catch (error) {
+                console.error('Error marking for delete:', error);
+            }
+        },
+
+        async cancelPending(split) {
+            if (!split.local_id) return;
+            try {
+                const response = await fetch(`/api/splits/${split.local_id}`, {
+                    method: 'DELETE'
+                });
+                if (response.ok) {
+                    await this.refresh();
+                }
+            } catch (error) {
+                console.error('Error canceling pending:', error);
+            }
+        },
+
+        async clearPending() {
+            try {
+                const response = await fetch('/api/splits/clear', {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    await this.refresh();
+                }
+            } catch (error) {
+                console.error('Error clearing pending:', error);
+            }
+        },
+
+        async syncToSpanner() {
+            this.syncLoading = true;
+            this.syncResult = null;
+            try {
+                const response = await fetch('/api/sync', {
+                    method: 'POST'
+                });
+                this.syncResult = await response.json();
+                await this.refresh();
+            } catch (error) {
+                console.error('Error syncing:', error);
+                this.syncResult = { success: false, message: 'Network error occurred' };
+            } finally {
+                this.syncLoading = false;
+            }
+        }
+    };
+}
+</script>
+{% endblock %}
