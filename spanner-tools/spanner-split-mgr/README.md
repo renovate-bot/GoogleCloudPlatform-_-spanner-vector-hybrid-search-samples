@@ -1,5 +1,7 @@
 # Spanner Split Points Manager
 
+> **Note:** This tool is not an official Google Cloud product. It is provided for illustration purposes only and should be used as a starting point for creating your own tooling.
+
 A web application for managing Google Cloud Spanner split points with local staging.
 
 ## Features
