@@ -190,7 +190,7 @@ gcloud run deploy spanner-openai-func \
 
 NOTE: You can also [deploy your Cloud Run Function via the GCP console](https://docs.cloud.google.com/run/docs/quickstarts/functions/deploy-functions-console):
 
-![ss_crf_deploy](simple-udf/images/deploy_crf.png)
+![ss_crf_deploy](images/deploy_crf.png)
 
 5. **Grant Permissions**:
 The Cloud Run service account needs permission to access the secret we created in Step 1.
