@@ -1,8 +1,8 @@
-# How to Generate OpenAI Embeddings with Spanner Remote UDFs
+# How to Generate Embeddings via OpenAI's API in your Spanner Database using Spanner Remote UDFs
 
-You can use the CREATE MODEL keyword in Spanner to set up a GCP VertexAI endpoint to generate embeddings and leverage other AI features.
+You can use the [CREATE MODEL](https://docs.cloud.google.com/spanner/docs/ml-tutorial-embeddings#generate_and_store_text_embeddings) keyword in Spanner to set up a GCP VertexAI endpoint to generate embeddings and leverage other AI features.
 
-This guide outlines how to use Spanner's Remote UDF capability to call *3rd party models* (OpenAI, in this instance) for generating text embeddings. We will create a Python function hosted on Cloud Run that adheres to the Spanner Remote UDF protocol, secure the API key using Secret Manager, and invoke the model directly from a SQL query.
+However, if you'd like to use 3rd party models outside of the VertexAI ecosystem to generate embeddings for your Spanner data, this guide shows you how. We will create a Python function hosted on Cloud Run that adheres to the Spanner Remote UDF protocol, secure the API key using Secret Manager, and invoke the model directly from a SQL query.
 
 NOTE: While this guide focuses on generating embeddings, you can use this remote UDF based approach to integrate with 3rd party models for other purposes as well.
 
