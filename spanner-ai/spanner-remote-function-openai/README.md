@@ -288,14 +288,15 @@ WHERE text IS NOT NULL AND embedding IS NULL;
 
 ```
 
+## Step 5: Issue queries
 
-3. **Verify Results**:
+1. **Verify Results**:
 ```sql
 SELECT id, text, embedding FROM snippets;
 
 ```
 
-4. **Cosine distance query**:
+2. **Cosine distance query**:
 ```sql
 SELECT 
   id, 
