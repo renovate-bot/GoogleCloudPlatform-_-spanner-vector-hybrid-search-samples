@@ -238,7 +238,7 @@ CREATE TABLE snippets (
 
 2. **Create the Remote Function**:
 This DDL statement registers the Cloud Run endpoint as a function callable from SQL.
-* Replace `YOUR_CLOUD_RUN_URL` with the URL output from the deploy command in Step 2. This URL is of the form 'https://[YOUR_REGION]-[YOUR_PROJECT_ID].cloudfunctions.net/[YOUR_FUNCTION_NAME]'
+* Replace `YOUR_CLOUD_RUN_URL` with the URL output from the deploy command in Step 2. This URL is of the form `'https://[YOUR_REGION]-[YOUR_PROJECT_ID].cloudfunctions.net/[YOUR_FUNCTION_NAME]'`
 * Adjust the `max_batching_rows` if you want to control how many rows Spanner sends to Python at once.
 
 Remote functions in Spanner can only be created with a named schame. So let's create a named schema first:
