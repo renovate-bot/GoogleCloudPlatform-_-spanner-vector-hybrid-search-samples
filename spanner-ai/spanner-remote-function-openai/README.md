@@ -205,7 +205,7 @@ gcloud secrets add-iam-policy-binding openai-api-key \
 
 ```
 
-*If* the Cloud Run Function is in a different GCP project from the Spanner instance in question, you also need to ensure that the Spanner service account is granted the Spanner Service Agent role on the GCP project hosting the Cloud Run Function.
+**If** the Cloud Run Function is in a different GCP project from the Spanner instance in question, you also need to ensure that the Spanner service account is granted the Spanner Service Agent role (`roles/spanner.serviceAgent`) on the GCP project hosting the Cloud Run Function.
 
 ```bash
 export SOURCE_PROJECT_NUMBER=$(gcloud projects describe [SOURCE_PROJECT_ID] --format="value(projectNumber)")
@@ -215,7 +215,7 @@ export SPANNER_P4SA="service-${SOURCE_PROJECT_NUMBER}@gcp-sa-spanner.iam.gservic
 gcloud projects add-iam-policy-binding [TARGET_PROJECT_ID] --member="serviceAccount:${SPANNER_P4SA}" --role="roles/spanner.serviceAgent"
 ```
 
-The SOURCE_PROJECT_NUMBER is the project where Spanner instance is hosted.
+The SOURCE_PROJECT_NUMBER reference above is the project where Spanner instance is hosted.
 
 
 ---
