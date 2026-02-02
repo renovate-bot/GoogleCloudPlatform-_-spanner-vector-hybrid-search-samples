@@ -215,7 +215,7 @@ export SPANNER_P4SA="service-${SOURCE_PROJECT_NUMBER}@gcp-sa-spanner.iam.gservic
 gcloud projects add-iam-policy-binding [TARGET_PROJECT_ID] --member="serviceAccount:${SPANNER_P4SA}" --role="roles/spanner.serviceAgent"
 ```
 
-The SOURCE_PROJECT_NUMBER reference above is the project where Spanner instance is hosted.
+The `SOURCE_PROJECT_NUMBER` referenced above is the project where Spanner instance is hosted.
 
 
 ---
