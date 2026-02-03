@@ -6,6 +6,9 @@ import urllib.request
 
 # Global client to reuse across warm instances
 openai_client = None
+project_id = None
+secret_name = "openai-api-key"
+model_name = "text-embedding-3-small"
 
 def get_openai_client():
     global openai_client
@@ -23,8 +26,6 @@ def get_openai_client():
         print(f"Could not retrieve project ID from metadata server: {e}")
         project_id = None
         raise
-
-    secret_name = "openai-api-key"
 
     # Fetch open ai key from GCP secret manager
     client = secretmanager.SecretManagerServiceClient()
@@ -59,7 +60,7 @@ def get_embedding(request):
         # We send all texts in one HTTP request for performance
         resp = client.embeddings.create(
             input=texts,
-            model="text-embedding-3-small"
+            model=model_name
         )
 
         # Map OpenAI results back to the original order

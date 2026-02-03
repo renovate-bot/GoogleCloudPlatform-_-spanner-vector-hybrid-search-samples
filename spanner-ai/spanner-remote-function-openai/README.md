@@ -86,6 +86,9 @@ import urllib.request
 
 # Global client to reuse across warm instances
 openai_client = None
+project_id = None
+secret_name = "openai-api-key"
+model_name = "text-embedding-3-small"
 
 def get_openai_client():
     global openai_client
@@ -103,8 +106,6 @@ def get_openai_client():
         print(f"Could not retrieve project ID from metadata server: {e}")
         project_id = None
         raise
-
-    secret_name = "openai-api-key"
 
     # Fetch open ai key from GCP secret manager
     client = secretmanager.SecretManagerServiceClient()
@@ -139,7 +140,7 @@ def get_embedding(request):
         # We send all texts in one HTTP request for performance
         resp = client.embeddings.create(
             input=texts,
-            model="text-embedding-3-small"
+            model=model_name
         )
 
         # Map OpenAI results back to the original order
@@ -247,7 +248,7 @@ This DDL statement registers the Cloud Run endpoint as a function callable from 
 * Replace `YOUR_CLOUD_RUN_URL` with the URL output from the deploy command in Step 2. This URL is of the form `'https://[YOUR_REGION]-[YOUR_PROJECT_ID].cloudfunctions.net/[YOUR_FUNCTION_NAME]'`
 * Adjust the `max_batching_rows` if you want to control how many rows Spanner sends to Python at once.
 
-Remote functions in Spanner can only be created with a named schame. So let's create a named schema first:
+Remote functions in Spanner can only be created with a named schema. So let's create a named schema first:
 
 ```sql
 CREATE SCHEMA udfs;
