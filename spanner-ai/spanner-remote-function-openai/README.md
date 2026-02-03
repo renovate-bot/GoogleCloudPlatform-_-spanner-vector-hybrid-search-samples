@@ -26,6 +26,12 @@ NOTE: While this guide focuses on generating embeddings, you can use this remote
 
 ---
 
+## Architecture
+
+![Arch_diagram](images/embeddings_arch.png)
+
+---
+
 ## Step 1: Securely Store the OpenAI API Key
 
 We will use Google Cloud Secret Manager to store the OpenAI API key securely, avoiding hardcoded secrets in our code.
