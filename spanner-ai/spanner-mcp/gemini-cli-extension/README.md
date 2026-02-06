@@ -35,8 +35,14 @@ Before you begin, ensure you have the following:
 To install the extension, use the command:
 
 ```bash
-gemini extensions install https://github.com/GoogleCloudPlatform/spanner-bb-samples/spanner-ai/spanner-mcp/gemini-cli-extension
+# First clone this repo
+git clone 
+
+# install extension
+gemini extensions install spanner-bb-samples/spanner-ai/spanner-mcp/gemini-cli-extension
 ```
+
+NOTE: Please adjust the path 
 
 ### Configuration
 
@@ -72,6 +78,14 @@ gemini
 ## Additional Extensions
 
 Find additional extensions to support your entire software development lifecycle at [github.com/gemini-cli-extensions](https://github.com/gemini-cli-extensions).
+
+## Uninstalling the extension
+
+To remove/uninstall the extension, use the command:
+
+```bash
+gemini extensions uninstall spanner
+```
 
 ## Troubleshooting
 
