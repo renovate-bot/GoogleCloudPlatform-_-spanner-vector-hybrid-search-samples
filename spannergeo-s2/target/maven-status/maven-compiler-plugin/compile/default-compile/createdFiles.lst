@@ -1,0 +1,6 @@
+com/example/spannergeo/S2Util.class
+com/example/spannergeo/model/Location.class
+com/example/spannergeo/SpannerGeoDao$LocationResult.class
+com/example/spannergeo/App.class
+com/example/spannergeo/S2Util$CellIdRange.class
+com/example/spannergeo/SpannerGeoDao.class
