@@ -1,0 +1,20 @@
+{
+  "name": "spanner",
+  "version": "0.0.1",
+  "description": "Connect and interact with Spanner resources and data using natural language.",
+  "mcpServers": {
+    "spanner": {
+      "httpUrl": "https://spanner.googleapis.com/mcp",
+      "authProviderType": "google_credentials",
+      "oauth": {
+        "scopes": [
+          "https://www.googleapis.com/auth/spanner.admin",
+          "https://www.googleapis.com/auth/spanner.data"
+          
+        ]
+      },
+      "timeout": 30000
+    }
+  },
+  "contextFileName": "SPANNER.md"
+}
