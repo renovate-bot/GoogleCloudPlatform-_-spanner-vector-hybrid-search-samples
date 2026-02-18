@@ -1,5 +1,7 @@
 # Geo-Spatial Indexing on Google Cloud Spanner with S2
 
+NOTE: This sample uses the term 'UDF' throughout, which is just a synonym for Spanner Remote Functions.
+
 This sample demonstrates how to perform geo-spatial indexing and querying on [Google Cloud Spanner](https://cloud.google.com/spanner) using the [S2 Geometry Library](https://s2geometry.io/). Spanner does not natively support spatial data types or spatial indexes, so we use S2 to encode geographic coordinates into indexable 64-bit cell IDs.
 
 The sample includes two approaches to querying:
