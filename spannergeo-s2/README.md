@@ -394,5 +394,5 @@ sample/
 - [S2 Geometry Library](https://s2geometry.io/)
 - [S2 Cell Hierarchy](https://s2geometry.io/devguide/s2cell_hierarchy.html)
 - [Google Cloud Spanner DDL Reference](https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language)
-- [Spanner Remote UDFs](https://cloud.google.com/spanner/docs/remote-functions)
+- [Spanner Remote Functions](https://docs.cloud.google.com/spanner/docs/cloud-run-remote-function)
 - [Spanner Interleaved Tables](https://cloud.google.com/spanner/docs/schema-and-data-model#creating-interleaved-tables)
