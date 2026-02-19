@@ -398,8 +398,6 @@ sample/
 
 **`UNNEST` of a Remote Function result requires a subquery**. Writing `FROM UNNEST(geo.s2_covering(...))` directly in the `FROM` clause does not work. You must materialize the array in a subquery first: `FROM (SELECT geo.s2_covering(...) AS cells), UNNEST(cells)`. This is a peculiarity of how `UNNEST` works with remote functions in Spanner today.
 
-**S2 Cell IDs must be returned as JSON strings from the Cloud Function**. S2 Cell IDs are 64-bit integers that exceed JavaScript/JSON’s safe integer limit of 2⁵³. The Cloud Function returns them as strings (`"3860680815790637056"` instead of `3860680815790637056`), and Spanner parses them into `INT64` automatically.
-
 **Signed vs Unsigned integers. S2 Cell IDs are unsigned 64-bit integers**. Spanner’s `INT64` is signed. We store the raw bit pattern, which means some Cell IDs appear as negative numbers in Spanner. Java's `long` is signed too, and `S2CellId.id()` returns the same raw bits. Range scans within the same S2 cube face (which is the common case for geographically bounded queries) sort correctly regardless of the sign interpretation.
 
 **Cold start**. You may see increased latency in your queries due to cold start time associated with Java based Cloud functions. You can address this by setting a minimum number of instances for use by Cloud Run functions to `1` (it's `0` by default) as recommended [here](https://docs.cloud.google.com/run/docs/tips/functions-best-practices#min).
