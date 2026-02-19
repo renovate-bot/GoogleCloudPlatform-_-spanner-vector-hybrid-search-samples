@@ -14,52 +14,40 @@
 # limitations under the License.
 
 # =============================================================================
-# grant-permissions.sh — Grant Spanner service agent invoker access
+# grant-permissions.sh — Grant Spanner service agent permissions for Remote UDFs
 # =============================================================================
-# Grants the Spanner service agent the Cloud Run Invoker role on each Cloud Run
-# service backing our Gen 2 Cloud Functions. This is the critical IAM binding
-# that allows Spanner Remote UDFs to invoke the functions.
+# Grants the Spanner service agent the Spanner API Service Agent role at the
+# project level. This is the IAM binding that allows Spanner Remote UDFs to
+# invoke Cloud Run endpoints (including Gen 2 Cloud Functions).
 #
 # How it works:
 #   - Spanner uses a Google-managed service agent to call Remote UDF endpoints.
 #     The service agent has the form:
 #       service-PROJECT_NUMBER@gcp-sa-spanner.iam.gserviceaccount.com
 #
-#   - Gen 2 Cloud Functions are backed by Cloud Run services. The IAM binding
-#     must be on the Cloud Run service (roles/run.invoker), NOT on the Cloud
-#     Function resource itself.
+#   - The service agent needs the roles/spanner.serviceAgent role on the
+#     project. This role includes the permissions needed to invoke Cloud Run
+#     services used as Remote UDF backends.
 #
 #   - When Spanner invokes a Remote UDF, the service agent obtains an OIDC
 #     token for the endpoint URL and includes it in the request. The Cloud Run
-#     service verifies the token and checks that the caller has the invoker
-#     role. Without this binding, Spanner receives PERMISSION_DENIED.
+#     service verifies the token and checks that the caller has the necessary
+#     permissions. Without this binding, Spanner receives PERMISSION_DENIED.
 #
-# Common mistakes this script avoids:
-#   - Granting roles/cloudfunctions.invoker instead of roles/run.invoker
-#     (Gen 2 functions need the Cloud Run role)
-#   - Granting the role to the wrong service account (e.g., the default
-#     compute service account instead of the Spanner service agent)
-#   - Granting the role at the project level instead of on the specific
-#     Cloud Run services (this script follows least privilege)
+# Reference:
+#   https://cloud.google.com/spanner/docs/cloud-run-remote-function
 #
 # Prerequisites:
 #   - Cloud Functions already deployed (run deploy-function.sh first)
 #   - gcloud CLI installed and authenticated with permissions to modify
-#     IAM policies on Cloud Run services (roles/run.admin or equivalent)
+#     IAM policies on the project (roles/resourcemanager.projectIamAdmin
+#     or equivalent)
 #
 # Usage:
 #   ./grant-permissions.sh                     # Uses project from gcloud config
 #   ./grant-permissions.sh --project my-proj   # Explicit project ID
 # =============================================================================
 set -euo pipefail
-
-# --- Configuration ---
-REGION="us-central1"
-
-# Cloud Run service names (same as the Gen 2 Cloud Function names)
-COVERING_SERVICE="s2-covering"
-DISTANCE_SERVICE="s2-distance"
-COVERING_RECT_SERVICE="s2-covering-rect"
 
 # --- Parse flags ---
 PROJECT_ID=""
@@ -95,7 +83,6 @@ fi
 echo "============================================="
 echo "Granting Spanner IAM permissions"
 echo "  Project: ${PROJECT_ID}"
-echo "  Region:  ${REGION}"
 echo "============================================="
 echo ""
 
@@ -112,44 +99,25 @@ echo "Step 2: Spanner service agent identified"
 echo "  ${SPANNER_SA}"
 echo ""
 
-# --- Step 3: Grant Cloud Run Invoker on s2-covering ---
-# This allows the Spanner service agent to send authenticated HTTPS requests
-# to the s2-covering Cloud Run service with a valid OIDC token.
-echo "Step 3: Granting roles/run.invoker on ${COVERING_SERVICE}..."
-echo "  Member:  serviceAccount:${SPANNER_SA}"
-echo "  Role:    roles/run.invoker"
-echo "  Service: ${COVERING_SERVICE} (${REGION})"
-gcloud run services add-iam-policy-binding "${COVERING_SERVICE}" \
-    --region="${REGION}" \
+# --- Step 3: Grant roles/spanner.serviceAgent at the project level ---
+# This role grants the Spanner service agent the permissions it needs to
+# invoke Cloud Run endpoints used as Remote UDF backends, including:
+#   - Obtaining OIDC tokens for authenticated HTTPS calls
+#   - Invoking Cloud Run services in the project
+#
+# This is a project-level binding (not per-service), which means the Spanner
+# service agent can invoke any Cloud Run service in the project that is
+# referenced by a Remote UDF. If you need tighter scoping, consult the
+# Spanner Remote Functions documentation.
+echo "Step 3: Granting roles/spanner.serviceAgent on project ${PROJECT_ID}..."
+echo "  Member:   serviceAccount:${SPANNER_SA}"
+echo "  Role:     roles/spanner.serviceAgent"
+echo "  Resource: project/${PROJECT_ID}"
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
     --member="serviceAccount:${SPANNER_SA}" \
-    --role="roles/run.invoker" \
-    --project="${PROJECT_ID}"
-echo "  Granted."
-echo ""
-
-# --- Step 4: Grant Cloud Run Invoker on s2-distance ---
-echo "Step 4: Granting roles/run.invoker on ${DISTANCE_SERVICE}..."
-echo "  Member:  serviceAccount:${SPANNER_SA}"
-echo "  Role:    roles/run.invoker"
-echo "  Service: ${DISTANCE_SERVICE} (${REGION})"
-gcloud run services add-iam-policy-binding "${DISTANCE_SERVICE}" \
-    --region="${REGION}" \
-    --member="serviceAccount:${SPANNER_SA}" \
-    --role="roles/run.invoker" \
-    --project="${PROJECT_ID}"
-echo "  Granted."
-echo ""
-
-# --- Step 5: Grant Cloud Run Invoker on s2-covering-rect ---
-echo "Step 5: Granting roles/run.invoker on ${COVERING_RECT_SERVICE}..."
-echo "  Member:  serviceAccount:${SPANNER_SA}"
-echo "  Role:    roles/run.invoker"
-echo "  Service: ${COVERING_RECT_SERVICE} (${REGION})"
-gcloud run services add-iam-policy-binding "${COVERING_RECT_SERVICE}" \
-    --region="${REGION}" \
-    --member="serviceAccount:${SPANNER_SA}" \
-    --role="roles/run.invoker" \
-    --project="${PROJECT_ID}"
+    --role="roles/spanner.serviceAgent" \
+    --condition=None \
+    --quiet > /dev/null
 echo "  Granted."
 echo ""
 
@@ -157,14 +125,12 @@ echo "============================================="
 echo "IAM permissions granted successfully."
 echo "============================================="
 echo ""
-echo "Summary of bindings:"
+echo "Summary:"
 echo "  ${SPANNER_SA}"
-echo "    -> roles/run.invoker on Cloud Run service: ${COVERING_SERVICE}"
-echo "    -> roles/run.invoker on Cloud Run service: ${DISTANCE_SERVICE}"
-echo "    -> roles/run.invoker on Cloud Run service: ${COVERING_RECT_SERVICE}"
+echo "    -> roles/spanner.serviceAgent on project: ${PROJECT_ID}"
 echo ""
-echo "The Spanner service agent can now invoke all three Cloud Functions"
-echo "via authenticated HTTPS with OIDC tokens."
+echo "The Spanner service agent can now invoke Cloud Run endpoints"
+echo "used as Remote UDF backends in this project."
 echo ""
 echo "Next step: Create the Remote UDF definitions in Spanner"
 echo "  Update the endpoint URLs in sample/infra/udf_definition.sql"

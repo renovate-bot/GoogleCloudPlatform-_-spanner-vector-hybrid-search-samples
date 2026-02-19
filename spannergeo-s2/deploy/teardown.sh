@@ -16,9 +16,8 @@
 # =============================================================================
 # teardown.sh — Delete Cloud Functions and clean up IAM bindings
 # =============================================================================
-# Removes the Cloud Functions deployed by deploy-function.sh. The IAM bindings
-# granted by grant-permissions.sh are automatically cleaned up when the Cloud
-# Run services are deleted (since the bindings are on the services themselves).
+# Removes the Cloud Functions deployed by deploy-function.sh, and removes the
+# project-level IAM binding granted by grant-permissions.sh.
 #
 # This script does NOT:
 #   - Delete the Spanner instance or database (those may be shared/pre-existing)
@@ -125,6 +124,30 @@ if gcloud functions describe "${COVERING_RECT_FUNCTION_NAME}" \
     echo "  Deleted: ${COVERING_RECT_FUNCTION_NAME}"
 else
     echo "  Function ${COVERING_RECT_FUNCTION_NAME} not found — skipping."
+fi
+echo ""
+
+# --- Step 4: Remove project-level IAM binding ---
+# The grant-permissions.sh script granted roles/spanner.serviceAgent at the
+# project level. Remove it so the Spanner service agent can no longer invoke
+# Cloud Run endpoints as Remote UDF backends.
+echo "Step 4: Removing project-level IAM binding..."
+PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format='value(projectNumber)' 2>/dev/null) || true
+if [[ -n "$PROJECT_NUMBER" ]]; then
+    SPANNER_SA="service-${PROJECT_NUMBER}@gcp-sa-spanner.iam.gserviceaccount.com"
+    echo "  Removing roles/spanner.serviceAgent from ${SPANNER_SA}..."
+    if gcloud projects remove-iam-policy-binding "${PROJECT_ID}" \
+        --member="serviceAccount:${SPANNER_SA}" \
+        --role="roles/spanner.serviceAgent" \
+        --quiet > /dev/null 2>&1; then
+        echo "  Removed."
+    else
+        echo "  Binding not found or already removed — skipping."
+    fi
+else
+    echo "  Could not determine project number — skipping IAM cleanup."
+    echo "  You may need to manually remove the roles/spanner.serviceAgent"
+    echo "  binding from the Spanner service agent."
 fi
 echo ""
 

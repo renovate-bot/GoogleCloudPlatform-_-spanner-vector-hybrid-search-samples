@@ -21,8 +21,8 @@
 --
 -- Prerequisites:
 --   1. Deploy the backing Cloud Run function(s) (see deploy/deploy-function.sh)
---   2. Grant the Spanner service agent the Cloud Run Invoker role on the
---      function (see deploy/grant-permissions.sh)
+--   2. Grant the Spanner service agent the Spanner API Service Agent role
+--      at the project level (see deploy/grant-permissions.sh)
 --   3. Replace PLACEHOLDER_URL with the actual deployed function URL(s)
 --
 -- Spanner dialect: GoogleSQL

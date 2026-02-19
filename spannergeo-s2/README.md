@@ -204,7 +204,7 @@ gcloud spanner databases ddl update YOUR_DATABASE \
 ./deploy/teardown.sh --project YOUR_PROJECT
 ```
 
-This deletes the Cloud Functions. IAM bindings on the Cloud Run services are automatically cleaned up when the services are deleted. To also remove the UDF definitions from Spanner:
+This deletes the Cloud Functions and removes the project-level `roles/spanner.serviceAgent` IAM binding that was granted to the Spanner service agent. To also remove the UDF definitions from Spanner:
 
 ```sql
 DROP FUNCTION IF EXISTS geo.s2_covering;
@@ -370,7 +370,7 @@ sample/
 ├── deploy/                   # Deployment & IAM scripts
 │   ├── setup.sh              # Enable GCP APIs
 │   ├── deploy-function.sh    # Deploy Cloud Functions
-│   ├── grant-permissions.sh  # IAM: Spanner service agent -> Cloud Run invoker
+│   ├── grant-permissions.sh  # IAM: Spanner service agent -> project-level serviceAgent role
 │   └── teardown.sh           # Clean up Cloud Functions
 │
 └── src/main/java/.../
