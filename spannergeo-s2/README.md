@@ -99,6 +99,33 @@ CREATE INDEX LocationIndexByS2Cell
 
 > **Gotcha -- Signed vs. Unsigned:** S2 Cell IDs are unsigned 64-bit integers, but Spanner's `INT64` is signed. We store the raw bit pattern reinterpreted as a signed long. This preserves sort order for range scans within the same face of the S2 cube. The application code handles the sign bit transparently (Java's `long` is signed, and `S2CellId.id()` returns the raw bits).
 
+### v4: Range Scans on Leaf Cell ID ([`schemas/v4_range_index.sql`](schemas/v4_range_index.sql))
+
+Instead of pre-materializing tokens at multiple levels, v4 stores a single leaf-level (level 30) S2 Cell ID on the main table. Because S2 Cell IDs are hierarchically encoded, all leaf descendants of a covering cell fall within a contiguous range. At query time, each covering cell is converted to a `[rangeMin, rangeMax]` pair using bitwise arithmetic, and the query uses `BETWEEN` range scans on a covering index.
+
+```sql
+ALTER TABLE PointOfInterest ADD COLUMN S2CellId INT64;
+
+CREATE INDEX PointOfInterestByS2Cell
+    ON PointOfInterest(S2CellId)
+    STORING (Name, Category, Latitude, Longitude);
+```
+
+The `STORING` clause includes all columns needed for post-filtering, so queries never back-join to the base table.
+
+The production schema ([`infra/schema.sql`](infra/schema.sql)) includes both v3 and v4 side by side -- they coexist on the same `PointOfInterest` table, and queries choose which index pattern to use.
+
+**v3 vs. v4 at a glance:**
+
+| | v3 (Token Index) | v4 (Range Scans) |
+|---|---|---|
+| Rows per POI | 4 (1 parent + 3 tokens) | 1 |
+| Write mutations | 4 per insert | 1 per insert |
+| Query pattern | Point lookups via `=` | Range scans via `BETWEEN` |
+| Requires JOIN | Yes (interleaved table) | No (covering index) |
+| Requires DISTINCT | Yes (multi-level tokens) | No (one row per POI) |
+| Cell levels | Pre-stored (12, 14, 16) | Any level at query time |
+
 ## Query Patterns
 
 All queries follow the **covering + post-filter** pattern:
@@ -107,15 +134,22 @@ All queries follow the **covering + post-filter** pattern:
 2. **Query the index:** Match covering cells against `PointOfInterestLocationIndex.S2CellId` via the `LocationIndexByS2Cell` secondary index.
 3. **Post-filter:** The covering is an approximation -- some cells extend beyond the search region. Filter candidates with exact distance or bounds.
 
-### Client-Side Queries
+### Client-Side Queries (v3)
 
-These queries require the application to compute S2 coverings and bind cell ID ranges as parameters.
+These queries require the application to compute S2 coverings and bind cell ID ranges as parameters. They query the interleaved `PointOfInterestLocationIndex` table.
 
 - **Radius search** ([`queries/radius_search.sql`](queries/radius_search.sql)) -- Find all POIs within a given distance from a point.
 - **Bounding box search** ([`queries/bbox_search.sql`](queries/bbox_search.sql)) -- Find all POIs within a rectangle.
 - **Approximate k-NN** ([`queries/knn_approx.sql`](queries/knn_approx.sql)) -- Find the k closest POIs using iterative radius expansion.
 
-### Remote UDF Queries
+### v4 Client-Side Queries
+
+The v4 queries scan the `PointOfInterestByS2Cell` covering index directly -- no interleaved table, no JOIN, no DISTINCT. The application converts each covering cell to a `[rangeMin, rangeMax]` pair and binds them as parameters.
+
+- **Radius search** ([`queries/v4_radius_search.sql`](queries/v4_radius_search.sql)) -- `BETWEEN` range scans with Haversine post-filter.
+- **Bounding box** and **k-NN** follow the same pattern with different post-filters.
+
+### Remote UDF Queries (v3)
 
 With Remote UDFs deployed, queries become self-contained SQL -- no client-side S2 library needed. The client only provides coordinates and a radius or bounding box.
 
@@ -123,7 +157,14 @@ With Remote UDFs deployed, queries become self-contained SQL -- no client-side S
 - **Bounding box search** ([`queries/udf_bbox_query.sql`](queries/udf_bbox_query.sql)) -- Uses `geo.s2_covering_rect()` for covering cells with exact lat/lng post-filter.
 - **Approximate k-NN** ([`queries/udf_knn_query.sql`](queries/udf_knn_query.sql)) -- Uses `geo.s2_covering()` and `geo.s2_distance()` with `LIMIT @k`. Iterative expansion is handled in application code.
 
-Here is the UDF radius search query as an example. The client only provides `(lat, lng, radius)`:
+### Remote UDF Queries (v4)
+
+The v4 UDF queries use the same three Cloud Functions as v3 -- no new deployments needed. The key difference: covering cell IDs are converted to leaf-cell ranges using bitwise arithmetic directly in SQL (`C & (-C)` extracts the sentinel bit).
+
+- **Radius search** ([`queries/v4_udf_query.sql`](queries/v4_udf_query.sql)) -- Combines `geo.s2_covering()` with inline bitwise range computation and `geo.s2_distance()` post-filter.
+- **Bounding box** and **k-NN** follow the same pattern with `geo.s2_covering_rect()` and appropriate post-filters.
+
+Here is the v3 UDF radius search query as an example. The client only provides `(lat, lng, radius)`:
 
 ```sql
 WITH candidates AS (
@@ -215,48 +256,52 @@ DROP SCHEMA IF EXISTS geo;
 
 ## Java Application
 
-The Java application demonstrates the full workflow: seeding data, indexing with S2, and running all six query types (three client-side, three Remote UDF).
+The Java application demonstrates the full workflow: seeding data, indexing with S2, and running all twelve query types (three query shapes x two schema versions x two computation approaches).
 
 ### Key Classes
 
 | Class | Purpose |
 |-------|---------|
 | [`App.java`](src/main/java/com/example/spannergeo/App.java) | Entry point -- seeds data and runs all demo queries |
-| [`S2Util.java`](src/main/java/com/example/spannergeo/S2Util.java) | S2 helper: cell ID encoding at levels 12/14/16, covering computation for circles and rectangles, Haversine distance |
-| [`SpannerGeoDao.java`](src/main/java/com/example/spannergeo/SpannerGeoDao.java) | Spanner data access with parameterized queries -- both client-side and UDF variants |
+| [`S2Util.java`](src/main/java/com/example/spannergeo/S2Util.java) | S2 helper: v3 cell ID encoding at levels 12/14/16, v4 leaf cell encoding (`encodeLeafCellId`), covering computation for both v3 (`computeCovering`) and v4 (`computeCoveringV4` -- returns `CellIdRange` pairs), Haversine distance |
+| [`SpannerGeoDao.java`](src/main/java/com/example/spannergeo/SpannerGeoDao.java) | Spanner data access with parameterized queries -- v3 and v4, client-side and UDF variants (12 methods total) |
 | [`Location.java`](src/main/java/com/example/spannergeo/model/Location.java) | POJO for a geo-tagged point of interest |
 
 ### How Ingestion Works
 
 When saving a location, the app:
 
-1. Computes S2 Cell IDs at levels 12, 14, and 16 using `S2Util.encodeCellIds()`
-2. Writes the parent `PointOfInterest` row and one `PointOfInterestLocationIndex` row per cell level
-3. Uses `INSERT_OR_UPDATE` mutations so re-running the demo is idempotent (no duplicate rows)
+1. Computes S2 Cell IDs at levels 12, 14, and 16 using `S2Util.encodeCellIds()` (for v3 tokens)
+2. Computes the leaf-level cell ID using `S2Util.encodeLeafCellId()` (for the v4 `S2CellId` column)
+3. Writes the parent `PointOfInterest` row (including the leaf cell ID), plus one `PointOfInterestLocationIndex` row per cell level
+4. Uses `INSERT_OR_UPDATE` mutations so re-running the demo is idempotent (no duplicate rows)
 
-All mutations happen in a single Spanner transaction.
+All mutations happen in a single Spanner transaction. Both v3 and v4 indexes are populated in one write.
 
 ### How Querying Works
 
-**Client-side approach** (e.g., `SpannerGeoDao.radiusSearch()`):
+**v3 client-side** (e.g., `SpannerGeoDao.radiusSearch()`):
 1. `S2Util.computeCovering()` returns a list of S2 cell ID ranges
-2. The DAO builds a parameterized query with `BETWEEN` clauses per range
-3. Results are post-filtered by exact Haversine distance and sorted
+2. The DAO builds a parameterized query with `BETWEEN` clauses per range, JOINing the interleaved index table to the parent
+3. Results are deduplicated (DISTINCT) and post-filtered by exact Haversine distance
 
-**Remote UDF approach** (e.g., `SpannerGeoDao.radiusSearchWithUdf()`):
+**v4 client-side** (e.g., `SpannerGeoDao.radiusSearchV4()`):
+1. `S2Util.computeCoveringV4()` returns `CellIdRange` pairs (rangeMin, rangeMax) derived from covering cells
+2. The DAO queries `PointOfInterest` directly via the `PointOfInterestByS2Cell` covering index with `BETWEEN` per range
+3. No JOIN, no DISTINCT -- one row per POI. Post-filtered by Haversine distance
+
+**v3 Remote UDF** (e.g., `SpannerGeoDao.radiusSearchWithUdf()`):
 1. The DAO sends a single parameterized query with `@centerLat`, `@centerLng`, `@radiusMeters`
 2. `geo.s2_covering()` computes covering cells server-side
 3. `geo.s2_distance()` computes exact distances server-side
 4. No S2 library dependency in the DAO method -- pure SQL
 
-**Remote UDF bounding box** (`SpannerGeoDao.bboxSearchWithUdf()`):
-1. Sends a single query with `@minLat`, `@minLng`, `@maxLat`, `@maxLng`
-2. `geo.s2_covering_rect()` computes covering cells server-side
-3. Post-filters with exact lat/lng bounds -- no distance computation needed
+**v4 Remote UDF** (e.g., `SpannerGeoDao.radiusSearchWithUdfV4()`):
+1. Same parameters as v3 UDF -- the same three Cloud Functions are reused
+2. Covering cell IDs are converted to leaf-cell ranges using bitwise arithmetic in SQL: `C & (-C)` extracts the sentinel bit, then `C - (bit - 1)` and `C + (bit - 1)` give the range
+3. Range scans hit the `PointOfInterestByS2Cell` covering index directly
 
-**Remote UDF k-NN** (`SpannerGeoDao.knnSearchWithUdf()`):
-1. Wraps `radiusSearchWithUdf()` with iterative radius doubling (starts at 500m, up to 8 attempts)
-2. Returns the top k results by distance
+**Bounding box and k-NN** follow the same patterns with `geo.s2_covering_rect()` and iterative radius doubling, respectively.
 
 The UDF demos in `App.java` are wrapped in try-catch, so the app runs cleanly whether or not UDFs are deployed.
 
@@ -322,6 +367,46 @@ Center: (37.7880, -122.4075)
 Closest 3 location(s):
   ...
 
+============================================================
+  V4 CLIENT-SIDE QUERIES (range scans on leaf cell)
+============================================================
+
+--- v4 Radius Search ---
+Center: (37.7880, -122.4075), Radius: 2000m
+
+Found 8 location(s):
+  0m - Union Square (shopping) [37.788000, -122.407500]
+  345m - Chinatown Gate (landmark) [37.790800, -122.405800]
+  ...
+
+--- v4 Bounding Box Search ---
+Box: (37.775, -122.420) to (37.795, -122.400)
+
+Found 4 location(s):
+  ...
+
+--- v4 Approximate k-NN Search (k=3) ---
+Center: (37.7880, -122.4075)
+
+Closest 3 location(s):
+  ...
+
+============================================================
+  V4 REMOTE UDF QUERIES (bitwise ranges in SQL)
+============================================================
+
+--- v4 Radius Search with Remote UDFs ---
+Center: (37.7880, -122.4075), Radius: 2000m
+
+Found 8 location(s):
+  ...
+
+--- v4 Bounding Box Search with Remote UDFs ---
+  ...
+
+--- v4 Approximate k-NN Search with Remote UDFs (k=3) ---
+  ...
+
 Done.
 ```
 
@@ -344,21 +429,24 @@ sample/
 ├── pom.xml                   # Maven project (main application)
 │
 ├── infra/
-│   ├── schema.sql            # Production schema (v3 token index)
+│   ├── schema.sql            # Production schema (v3 token index + v4 range index)
 │   └── udf_definition.sql    # Remote UDF DDL (geo.s2_covering, geo.s2_covering_rect, geo.s2_distance)
 │
 ├── schemas/                  # All schema iterations (for reference)
 │   ├── v1_naive.sql
 │   ├── v2_single_cell.sql
-│   └── v3_token_index.sql
+│   ├── v3_token_index.sql
+│   └── v4_range_index.sql
 │
 ├── queries/
 │   ├── radius_search.sql     # Client-side radius search
 │   ├── bbox_search.sql       # Client-side bounding box query
 │   ├── knn_approx.sql        # Client-side approximate k-NN query
-│   ├── udf_query.sql         # UDF radius search
-│   ├── udf_bbox_query.sql    # UDF bounding box search
-│   └── udf_knn_query.sql     # UDF approximate k-NN search
+│   ├── udf_query.sql         # v3 UDF radius search
+│   ├── udf_bbox_query.sql    # v3 UDF bounding box search
+│   ├── udf_knn_query.sql     # v3 UDF approximate k-NN search
+│   ├── v4_radius_search.sql  # v4 client-side radius search (range scans)
+│   └── v4_udf_query.sql      # v4 UDF radius search (bitwise ranges in SQL)
 │
 ├── cloud-function/           # Cloud Functions backing Remote UDFs
 │   ├── pom.xml               # Separate Maven project
