@@ -49,16 +49,18 @@ public class SpannerGeoDao {
 
         List<Mutation> mutations = new ArrayList<>();
 
-        // Insert the parent row
+        // Insert the parent row (includes v4 leaf cell ID)
         mutations.add(Mutation.newInsertOrUpdateBuilder("PointOfInterest")
                 .set("PoiId").to(location.getPoiId())
                 .set("Name").to(location.getName())
                 .set("Category").to(location.getCategory())
                 .set("Latitude").to(location.getLatitude())
                 .set("Longitude").to(location.getLongitude())
+                .set("S2CellId").to(S2Util.encodeLeafCellId(
+                        location.getLatitude(), location.getLongitude()))
                 .build());
 
-        // Insert one index row per S2 cell level
+        // Insert one index row per S2 cell level (v3 token index)
         for (S2CellId cellId : cellIds) {
             mutations.add(Mutation.newInsertOrUpdateBuilder("PointOfInterestLocationIndex")
                     .set("PoiId").to(location.getPoiId())
@@ -86,6 +88,8 @@ public class SpannerGeoDao {
                     .set("Category").to(location.getCategory())
                     .set("Latitude").to(location.getLatitude())
                     .set("Longitude").to(location.getLongitude())
+                    .set("S2CellId").to(S2Util.encodeLeafCellId(
+                            location.getLatitude(), location.getLongitude()))
                     .build());
 
             for (S2CellId cellId : cellIds) {
@@ -401,6 +405,265 @@ public class SpannerGeoDao {
         }
 
         // Return only the top k results
+        if (results.size() > k) {
+            results = results.subList(0, k);
+        }
+        return results;
+    }
+
+    // =========================================================================
+    // v4 queries: range scans on leaf-level S2 Cell ID
+    // =========================================================================
+    // v4 queries read directly from PointOfInterest (no interleaved table),
+    // using the PointOfInterestByS2Cell covering index. No JOINs, no DISTINCT.
+
+    /**
+     * v4 Radius search: find all POIs within {@code radiusMeters} using range scans
+     * on the leaf-level S2 Cell ID stored in PointOfInterest.
+     *
+     * <p>Unlike the v3 {@link #radiusSearch}, this queries PointOfInterest directly
+     * via the covering index — no JOIN to an interleaved table, no DISTINCT needed.
+     */
+    public List<LocationResult> radiusSearchV4(double centerLat, double centerLng,
+                                                double radiusMeters) {
+        List<S2Util.CellIdRange> ranges = S2Util.computeCoveringV4(
+                centerLat, centerLng, radiusMeters);
+
+        if (ranges.isEmpty()) {
+            return List.of();
+        }
+
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT PoiId, Name, Category, Latitude, Longitude ");
+        sql.append("FROM PointOfInterest@{FORCE_INDEX=PointOfInterestByS2Cell} WHERE ");
+
+        for (int i = 0; i < ranges.size(); i++) {
+            if (i > 0) sql.append(" OR ");
+            sql.append("S2CellId BETWEEN @min_").append(i)
+               .append(" AND @max_").append(i);
+        }
+
+        Statement.Builder stmtBuilder = Statement.newBuilder(sql.toString());
+        for (int i = 0; i < ranges.size(); i++) {
+            stmtBuilder.bind("min_" + i).to(ranges.get(i).getMin());
+            stmtBuilder.bind("max_" + i).to(ranges.get(i).getMax());
+        }
+
+        List<LocationResult> results = new ArrayList<>();
+        try (ResultSet rs = dbClient.singleUse().executeQuery(stmtBuilder.build())) {
+            while (rs.next()) {
+                double lat = rs.getDouble("Latitude");
+                double lng = rs.getDouble("Longitude");
+                double distance = S2Util.haversineDistance(centerLat, centerLng, lat, lng);
+
+                if (distance <= radiusMeters) {
+                    Location loc = new Location(
+                            rs.getString("PoiId"),
+                            rs.getString("Name"),
+                            rs.isNull("Category") ? null : rs.getString("Category"),
+                            lat, lng);
+                    results.add(new LocationResult(loc, distance));
+                }
+            }
+        }
+
+        results.sort(Comparator.comparingDouble(LocationResult::getDistanceMeters));
+        return results;
+    }
+
+    /**
+     * v4 Bounding box search using range scans on the leaf-level S2 Cell ID.
+     */
+    public List<Location> bboxSearchV4(double minLat, double minLng,
+                                        double maxLat, double maxLng) {
+        List<S2Util.CellIdRange> ranges = S2Util.computeCoveringRectV4(
+                minLat, minLng, maxLat, maxLng);
+
+        if (ranges.isEmpty()) {
+            return List.of();
+        }
+
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT PoiId, Name, Category, Latitude, Longitude ");
+        sql.append("FROM PointOfInterest@{FORCE_INDEX=PointOfInterestByS2Cell} WHERE (");
+
+        for (int i = 0; i < ranges.size(); i++) {
+            if (i > 0) sql.append(" OR ");
+            sql.append("S2CellId BETWEEN @min_").append(i)
+               .append(" AND @max_").append(i);
+        }
+        sql.append(")");
+        sql.append(" AND Latitude BETWEEN @minLat AND @maxLat");
+        sql.append(" AND Longitude BETWEEN @minLng AND @maxLng");
+        sql.append(" ORDER BY Name");
+
+        Statement.Builder stmtBuilder = Statement.newBuilder(sql.toString());
+        for (int i = 0; i < ranges.size(); i++) {
+            stmtBuilder.bind("min_" + i).to(ranges.get(i).getMin());
+            stmtBuilder.bind("max_" + i).to(ranges.get(i).getMax());
+        }
+        stmtBuilder.bind("minLat").to(minLat);
+        stmtBuilder.bind("maxLat").to(maxLat);
+        stmtBuilder.bind("minLng").to(minLng);
+        stmtBuilder.bind("maxLng").to(maxLng);
+
+        List<Location> results = new ArrayList<>();
+        try (ResultSet rs = dbClient.singleUse().executeQuery(stmtBuilder.build())) {
+            while (rs.next()) {
+                results.add(new Location(
+                        rs.getString("PoiId"),
+                        rs.getString("Name"),
+                        rs.isNull("Category") ? null : rs.getString("Category"),
+                        rs.getDouble("Latitude"),
+                        rs.getDouble("Longitude")));
+            }
+        }
+        return results;
+    }
+
+    /**
+     * v4 Approximate k-NN using range scans on the leaf-level S2 Cell ID.
+     */
+    public List<LocationResult> knnSearchV4(double centerLat, double centerLng,
+                                              int k, double initialRadiusMeters) {
+        double radius = initialRadiusMeters;
+        List<LocationResult> results = List.of();
+
+        for (int attempt = 0; attempt < 8; attempt++) {
+            results = radiusSearchV4(centerLat, centerLng, radius);
+            if (results.size() >= k) {
+                break;
+            }
+            radius *= 2;
+        }
+
+        if (results.size() > k) {
+            results = results.subList(0, k);
+        }
+        return results;
+    }
+
+    /**
+     * v4 Radius search using Remote UDFs with bitwise range computation in SQL.
+     *
+     * <p>The covering cells from {@code geo.s2_covering()} are converted to
+     * leaf-cell ranges using SQL bitwise arithmetic:
+     * {@code covering_cell & (-covering_cell)} computes the lowest set bit
+     * (the sentinel bit), which determines the range span.
+     *
+     * <p>Reuses the existing covering and distance UDFs — no new Cloud Functions needed.
+     */
+    public List<LocationResult> radiusSearchWithUdfV4(double centerLat, double centerLng,
+                                                       double radiusMeters) {
+        String sql = """
+                WITH covering_ranges AS (
+                  SELECT
+                    covering_cell - ((covering_cell & (-covering_cell)) - 1) AS range_min,
+                    covering_cell + ((covering_cell & (-covering_cell)) - 1) AS range_max
+                  FROM (SELECT geo.s2_covering(@centerLat, @centerLng, @radiusMeters) AS cells),
+                       UNNEST(cells) AS covering_cell
+                ),
+                candidates AS (
+                  SELECT DISTINCT poi.PoiId, poi.Name, poi.Category, poi.Latitude, poi.Longitude
+                  FROM covering_ranges cr
+                  JOIN PointOfInterest@{FORCE_INDEX=PointOfInterestByS2Cell} poi
+                      ON poi.S2CellId BETWEEN cr.range_min AND cr.range_max
+                ),
+                with_distance AS (
+                  SELECT c.PoiId, c.Name, c.Category, c.Latitude, c.Longitude,
+                         geo.s2_distance(c.Latitude, c.Longitude, @centerLat, @centerLng) AS distance_meters
+                  FROM candidates c
+                )
+                SELECT * FROM with_distance
+                WHERE distance_meters <= @radiusMeters
+                ORDER BY distance_meters
+                """;
+
+        Statement statement = Statement.newBuilder(sql)
+                .bind("centerLat").to(centerLat)
+                .bind("centerLng").to(centerLng)
+                .bind("radiusMeters").to(radiusMeters)
+                .build();
+
+        List<LocationResult> results = new ArrayList<>();
+        try (ResultSet rs = dbClient.singleUse().executeQuery(statement)) {
+            while (rs.next()) {
+                Location loc = new Location(
+                        rs.getString("PoiId"),
+                        rs.getString("Name"),
+                        rs.isNull("Category") ? null : rs.getString("Category"),
+                        rs.getDouble("Latitude"),
+                        rs.getDouble("Longitude"));
+                double distance = rs.getDouble("distance_meters");
+                results.add(new LocationResult(loc, distance));
+            }
+        }
+
+        return results;
+    }
+
+    /**
+     * v4 Bounding box search using Remote UDFs with bitwise range computation.
+     */
+    public List<Location> bboxSearchWithUdfV4(double minLat, double minLng,
+                                               double maxLat, double maxLng) {
+        String sql = """
+                WITH covering_ranges AS (
+                  SELECT
+                    covering_cell - ((covering_cell & (-covering_cell)) - 1) AS range_min,
+                    covering_cell + ((covering_cell & (-covering_cell)) - 1) AS range_max
+                  FROM (SELECT geo.s2_covering_rect(@minLat, @minLng, @maxLat, @maxLng) AS cells),
+                       UNNEST(cells) AS covering_cell
+                ),
+                candidates AS (
+                  SELECT DISTINCT poi.PoiId, poi.Name, poi.Category, poi.Latitude, poi.Longitude
+                  FROM covering_ranges cr
+                  JOIN PointOfInterest@{FORCE_INDEX=PointOfInterestByS2Cell} poi
+                      ON poi.S2CellId BETWEEN cr.range_min AND cr.range_max
+                )
+                SELECT * FROM candidates
+                WHERE Latitude BETWEEN @minLat AND @maxLat
+                  AND Longitude BETWEEN @minLng AND @maxLng
+                ORDER BY Name
+                """;
+
+        Statement statement = Statement.newBuilder(sql)
+                .bind("minLat").to(minLat)
+                .bind("minLng").to(minLng)
+                .bind("maxLat").to(maxLat)
+                .bind("maxLng").to(maxLng)
+                .build();
+
+        List<Location> results = new ArrayList<>();
+        try (ResultSet rs = dbClient.singleUse().executeQuery(statement)) {
+            while (rs.next()) {
+                results.add(new Location(
+                        rs.getString("PoiId"),
+                        rs.getString("Name"),
+                        rs.isNull("Category") ? null : rs.getString("Category"),
+                        rs.getDouble("Latitude"),
+                        rs.getDouble("Longitude")));
+            }
+        }
+        return results;
+    }
+
+    /**
+     * v4 Approximate k-NN using Remote UDFs with bitwise range computation.
+     */
+    public List<LocationResult> knnSearchWithUdfV4(double centerLat, double centerLng,
+                                                     int k, double initialRadiusMeters) {
+        double radius = initialRadiusMeters;
+        List<LocationResult> results = List.of();
+
+        for (int attempt = 0; attempt < 8; attempt++) {
+            results = radiusSearchWithUdfV4(centerLat, centerLng, radius);
+            if (results.size() >= k) {
+                break;
+            }
+            radius *= 2;
+        }
+
         if (results.size() > k) {
             results = results.subList(0, k);
         }

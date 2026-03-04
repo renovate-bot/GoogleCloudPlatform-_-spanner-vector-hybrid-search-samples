@@ -57,3 +57,21 @@ CREATE INDEX LocationIndexByS2Cell
 -- Optionally, a secondary index on the parent table for name lookups
 CREATE INDEX PointOfInterestByName
     ON PointOfInterest(Name);
+
+-- =============================================================================
+-- v4 additions: Range scans on a single leaf-level S2 Cell ID
+-- =============================================================================
+-- Instead of pre-materializing tokens at multiple levels (v3), store a single
+-- leaf-level Cell ID on the main table. Covering cells are converted to
+-- [rangeMin, rangeMax] ranges at query time using bitwise arithmetic.
+-- Both v3 and v4 indexes coexist — queries choose which pattern to use.
+
+-- Leaf-level S2 Cell ID (level 30). Nullable because existing rows may not
+-- have it during migration; new inserts always populate it.
+ALTER TABLE PointOfInterest ADD COLUMN S2CellId INT64;
+
+-- Covering index for v4 range-scan queries. STORING avoids a back-join to the
+-- base table for post-filtering on lat/lng and returning Name/Category.
+CREATE INDEX PointOfInterestByS2Cell
+    ON PointOfInterest(S2CellId)
+    STORING (Name, Category, Latitude, Longitude);

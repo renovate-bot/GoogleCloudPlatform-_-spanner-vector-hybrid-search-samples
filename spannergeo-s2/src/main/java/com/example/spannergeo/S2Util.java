@@ -124,6 +124,64 @@ public class S2Util {
         return ranges;
     }
 
+    // =========================================================================
+    // v4 methods: single leaf cell + range scans
+    // =========================================================================
+
+    /**
+     * Encode a lat/lng point into a single leaf-level (level 30) S2 Cell ID.
+     * This is the v4 encoding — one cell ID per POI stored on the main table.
+     */
+    public static long encodeLeafCellId(double latitude, double longitude) {
+        S2LatLng latLng = S2LatLng.fromDegrees(latitude, longitude);
+        return S2CellId.fromLatLng(latLng).id();
+    }
+
+    /**
+     * Compute a covering for a circular region, optimized for v4 range scans.
+     * Uses a wider level range (12-24) and more cells than v3, since we're no
+     * longer constrained to pre-stored index levels. The coverer can pick any
+     * level to best tile the search region.
+     *
+     * Returns the same {@link CellIdRange} type as v3 — the {@code toRanges()}
+     * method already calls {@code cellId.rangeMin().id()} / {@code rangeMax().id()},
+     * which computes the leaf-cell range for each covering cell.
+     */
+    public static List<CellIdRange> computeCoveringV4(double centerLat, double centerLng,
+                                                       double radiusMeters) {
+        S2LatLng center = S2LatLng.fromDegrees(centerLat, centerLng);
+        S1Angle radiusAngle = S1Angle.radians(radiusMeters / EARTH_RADIUS_METERS);
+        S2Cap cap = S2Cap.fromAxisAngle(center.toPoint(), radiusAngle);
+
+        S2RegionCoverer coverer = S2RegionCoverer.builder()
+                .setMinLevel(12)
+                .setMaxLevel(24)
+                .setMaxCells(20)
+                .build();
+
+        S2CellUnion covering = coverer.getCovering(cap);
+        return toRanges(covering);
+    }
+
+    /**
+     * Compute a covering for a rectangular region, optimized for v4 range scans.
+     */
+    public static List<CellIdRange> computeCoveringRectV4(double minLat, double minLng,
+                                                           double maxLat, double maxLng) {
+        S2LatLngRect rect = new S2LatLngRect(
+                S2LatLng.fromDegrees(minLat, minLng),
+                S2LatLng.fromDegrees(maxLat, maxLng));
+
+        S2RegionCoverer coverer = S2RegionCoverer.builder()
+                .setMinLevel(12)
+                .setMaxLevel(24)
+                .setMaxCells(20)
+                .build();
+
+        S2CellUnion covering = coverer.getCovering(rect);
+        return toRanges(covering);
+    }
+
     /**
      * Haversine distance between two points in meters.
      * Used for post-filtering after the S2 covering query returns candidates.
