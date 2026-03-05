@@ -164,7 +164,7 @@ The v4 UDF queries use the same three Cloud Functions as v3 -- no new deployment
 - **Radius search** ([`queries/v4_udf_query.sql`](queries/v4_udf_query.sql)) -- Combines `geo.s2_covering()` with inline bitwise range computation and `geo.s2_distance()` post-filter.
 - **Bounding box** and **k-NN** follow the same pattern with `geo.s2_covering_rect()` and appropriate post-filters.
 
-Here is the v3 UDF radius search query as an example. The client only provides `(lat, lng, radius)`:
+Here is the v4 UDF radius search query as an example. The client only provides `(lat, lng, radius)`:
 
 ```sql
 WITH candidates AS (
