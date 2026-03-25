@@ -1,0 +1,4 @@
+google-cloud-spanner
+Faker
+python-json-logger
+argparse
