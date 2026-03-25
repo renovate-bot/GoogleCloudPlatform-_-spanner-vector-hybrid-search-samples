@@ -6,7 +6,7 @@ A Python-based load generator for Cloud Spanner, designed to run as Cloud Run Ta
 - **Seed Mode**: Generates a configurable amount of initial data (Users, Products, Orders).
 - **Noise Mode**: Generates continuous random load including inserts, updates, and 5 diverse query shapes.
 - **Hotspot Mode**: Generates a moving hotspot by inserting only new orders with sequential (timestamp-based) keys.
-- **Lock Mode**: Simulates lock contention by executing transactions that hold exclusive locks for an extended period (2s).
+- **Lock Mode**: Simulates lock contention by executing transactions that hold locks for an extended period (2s).
 - **Serverless Scaling**: Built for Cloud Run Tasks to scale load generation horizontally.
 
 ## Local Usage
