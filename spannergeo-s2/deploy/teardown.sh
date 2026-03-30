@@ -40,6 +40,8 @@ REGION="us-central1"
 COVERING_FUNCTION_NAME="s2-covering"
 DISTANCE_FUNCTION_NAME="s2-distance"
 COVERING_RECT_FUNCTION_NAME="s2-covering-rect"
+COVERING_V4_FUNCTION_NAME="s2-covering-v4"
+COVERING_RECT_V4_FUNCTION_NAME="s2-covering-rect-v4"
 
 # --- Parse flags ---
 PROJECT_ID=""
@@ -127,7 +129,37 @@ else
 fi
 echo ""
 
-# --- Step 4: Remove project-level IAM binding ---
+# --- Step 4: Delete s2-covering-v4 function ---
+echo "Step 4: Deleting function: ${COVERING_V4_FUNCTION_NAME}..."
+if gcloud functions describe "${COVERING_V4_FUNCTION_NAME}" \
+    --gen2 --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
+    gcloud functions delete "${COVERING_V4_FUNCTION_NAME}" \
+        --gen2 \
+        --region="${REGION}" \
+        --project="${PROJECT_ID}" \
+        --quiet
+    echo "  Deleted: ${COVERING_V4_FUNCTION_NAME}"
+else
+    echo "  Function ${COVERING_V4_FUNCTION_NAME} not found — skipping."
+fi
+echo ""
+
+# --- Step 5: Delete s2-covering-rect-v4 function ---
+echo "Step 5: Deleting function: ${COVERING_RECT_V4_FUNCTION_NAME}..."
+if gcloud functions describe "${COVERING_RECT_V4_FUNCTION_NAME}" \
+    --gen2 --region="${REGION}" --project="${PROJECT_ID}" &>/dev/null; then
+    gcloud functions delete "${COVERING_RECT_V4_FUNCTION_NAME}" \
+        --gen2 \
+        --region="${REGION}" \
+        --project="${PROJECT_ID}" \
+        --quiet
+    echo "  Deleted: ${COVERING_RECT_V4_FUNCTION_NAME}"
+else
+    echo "  Function ${COVERING_RECT_V4_FUNCTION_NAME} not found — skipping."
+fi
+echo ""
+
+# --- Step 6: Remove project-level IAM binding ---
 # The grant-permissions.sh script granted roles/spanner.serviceAgent at the
 # project level. Remove it so the Spanner service agent can no longer invoke
 # Cloud Run endpoints as Remote UDF backends.
@@ -161,8 +193,10 @@ echo "query calling them will fail. To clean up the UDF definitions,"
 echo "run the following DDL against your Spanner database:"
 echo ""
 echo "  DROP FUNCTION IF EXISTS geo.s2_covering;"
+echo "  DROP FUNCTION IF EXISTS geo.s2_covering_v4;"
 echo "  DROP FUNCTION IF EXISTS geo.s2_distance;"
 echo "  DROP FUNCTION IF EXISTS geo.s2_covering_rect;"
+echo "  DROP FUNCTION IF EXISTS geo.s2_covering_rect_v4;"
 echo "  DROP SCHEMA IF EXISTS geo;"
 echo ""
 echo "You can execute this via the gcloud CLI:"

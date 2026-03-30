@@ -16,16 +16,22 @@
 # =============================================================================
 # deploy-function.sh — Deploy S2 Cloud Functions for Spanner Remote UDFs
 # =============================================================================
-# Deploys three Gen 2 Cloud Functions that back the Spanner Remote UDFs:
+# Deploys five Gen 2 Cloud Functions that back the Spanner Remote UDFs:
 #
-#   1. s2-covering       — Computes S2 cell coverings for a circular search region.
-#                          Entry point: com.example.spannergeo.functions.S2CoveringFunction
+#   1. s2-covering          — Computes S2 cell coverings for a circular region (v3, levels 12/14/16).
+#                             Entry point: com.example.spannergeo.functions.S2CoveringFunction
 #
-#   2. s2-distance       — Computes great-circle distance between two lat/lng points.
-#                          Entry point: com.example.spannergeo.functions.S2DistanceFunction
+#   2. s2-distance          — Computes great-circle distance between two lat/lng points.
+#                             Entry point: com.example.spannergeo.functions.S2DistanceFunction
 #
-#   3. s2-covering-rect  — Computes S2 cell coverings for a rectangular (lat/lng) region.
-#                          Entry point: com.example.spannergeo.functions.S2CoveringRectFunction
+#   3. s2-covering-rect     — Computes S2 cell coverings for a rectangular region (v3, levels 12/14/16).
+#                             Entry point: com.example.spannergeo.functions.S2CoveringRectFunction
+#
+#   4. s2-covering-v4       — Computes S2 cell coverings for a circular region (v4, any level).
+#                             Entry point: com.example.spannergeo.functions.S2CoveringV4Function
+#
+#   5. s2-covering-rect-v4  — Computes S2 cell coverings for a rectangular region (v4, any level).
+#                             Entry point: com.example.spannergeo.functions.S2CoveringRectV4Function
 #
 # All functions are HTTP-triggered, require authentication, and use the Java 17
 # runtime. Gen 2 functions run on Cloud Run, which provides better concurrency
@@ -58,6 +64,12 @@ DISTANCE_ENTRY_POINT="com.example.spannergeo.functions.S2DistanceFunction"
 
 COVERING_RECT_FUNCTION_NAME="s2-covering-rect"
 COVERING_RECT_ENTRY_POINT="com.example.spannergeo.functions.S2CoveringRectFunction"
+
+COVERING_V4_FUNCTION_NAME="s2-covering-v4"
+COVERING_V4_ENTRY_POINT="com.example.spannergeo.functions.S2CoveringV4Function"
+
+COVERING_RECT_V4_FUNCTION_NAME="s2-covering-rect-v4"
+COVERING_RECT_V4_ENTRY_POINT="com.example.spannergeo.functions.S2CoveringRectV4Function"
 
 # --- Resolve paths relative to this script ---
 # This ensures the script works regardless of where it's invoked from.
@@ -179,10 +191,44 @@ gcloud functions deploy "${COVERING_RECT_FUNCTION_NAME}" \
 echo "  Deployed: ${COVERING_RECT_FUNCTION_NAME}"
 echo ""
 
-# --- Step 5: Retrieve and display function URLs ---
+# --- Step 5: Deploy s2-covering-v4 function ---
+echo "Step 5: Deploying function: ${COVERING_V4_FUNCTION_NAME}"
+echo "  Entry point: ${COVERING_V4_ENTRY_POINT}"
+gcloud functions deploy "${COVERING_V4_FUNCTION_NAME}" \
+    --gen2 \
+    --region="${REGION}" \
+    --runtime="${RUNTIME}" \
+    --source="${CLOUD_FUNCTION_DIR}" \
+    --entry-point="${COVERING_V4_ENTRY_POINT}" \
+    --trigger-http \
+    --no-allow-unauthenticated \
+    --memory="${MEMORY}" \
+    --timeout="${TIMEOUT}" \
+    --project="${PROJECT_ID}"
+echo "  Deployed: ${COVERING_V4_FUNCTION_NAME}"
+echo ""
+
+# --- Step 6: Deploy s2-covering-rect-v4 function ---
+echo "Step 6: Deploying function: ${COVERING_RECT_V4_FUNCTION_NAME}"
+echo "  Entry point: ${COVERING_RECT_V4_ENTRY_POINT}"
+gcloud functions deploy "${COVERING_RECT_V4_FUNCTION_NAME}" \
+    --gen2 \
+    --region="${REGION}" \
+    --runtime="${RUNTIME}" \
+    --source="${CLOUD_FUNCTION_DIR}" \
+    --entry-point="${COVERING_RECT_V4_ENTRY_POINT}" \
+    --trigger-http \
+    --no-allow-unauthenticated \
+    --memory="${MEMORY}" \
+    --timeout="${TIMEOUT}" \
+    --project="${PROJECT_ID}"
+echo "  Deployed: ${COVERING_RECT_V4_FUNCTION_NAME}"
+echo ""
+
+# --- Step 7: Retrieve and display function URLs ---
 # Gen 2 functions have their URL in serviceConfig.uri. These URLs are needed
 # for the Spanner Remote UDF CREATE FUNCTION ... OPTIONS (endpoint = '...') DDL.
-echo "Step 5: Retrieving deployed function URLs..."
+echo "Step 7: Retrieving deployed function URLs..."
 
 COVERING_URL=$(gcloud functions describe "${COVERING_FUNCTION_NAME}" \
     --gen2 \
@@ -202,14 +248,28 @@ COVERING_RECT_URL=$(gcloud functions describe "${COVERING_RECT_FUNCTION_NAME}" \
     --format='value(serviceConfig.uri)' \
     --project="${PROJECT_ID}")
 
+COVERING_V4_URL=$(gcloud functions describe "${COVERING_V4_FUNCTION_NAME}" \
+    --gen2 \
+    --region="${REGION}" \
+    --format='value(serviceConfig.uri)' \
+    --project="${PROJECT_ID}")
+
+COVERING_RECT_V4_URL=$(gcloud functions describe "${COVERING_RECT_V4_FUNCTION_NAME}" \
+    --gen2 \
+    --region="${REGION}" \
+    --format='value(serviceConfig.uri)' \
+    --project="${PROJECT_ID}")
+
 echo ""
 echo "============================================="
 echo "Deployment complete!"
 echo "============================================="
 echo ""
-echo "S2 Covering Function URL:       ${COVERING_URL}"
-echo "S2 Distance Function URL:       ${DISTANCE_URL}"
-echo "S2 Covering Rect Function URL:  ${COVERING_RECT_URL}"
+echo "S2 Covering Function URL:          ${COVERING_URL}"
+echo "S2 Distance Function URL:          ${DISTANCE_URL}"
+echo "S2 Covering Rect Function URL:     ${COVERING_RECT_URL}"
+echo "S2 Covering V4 Function URL:       ${COVERING_V4_URL}"
+echo "S2 Covering Rect V4 Function URL:  ${COVERING_RECT_V4_URL}"
 echo ""
 echo "Use these URLs in your Remote UDF definitions"
 echo "(sample/infra/udf_definition.sql). Replace PLACEHOLDER_URL"

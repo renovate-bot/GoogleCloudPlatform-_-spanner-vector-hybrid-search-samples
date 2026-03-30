@@ -14,7 +14,7 @@
 
 -- v4 Radius Search with Remote UDFs and bitwise range computation
 --
--- This query combines Remote UDFs (geo.s2_covering, geo.s2_distance) with
+-- This query combines Remote UDFs (geo.s2_covering_v4, geo.s2_distance) with
 -- the v4 range-scan pattern. The key innovation: covering cell IDs are
 -- converted to leaf-cell ranges using bitwise arithmetic directly in SQL.
 --
@@ -23,12 +23,16 @@
 --   rangeMin     = C - (lowestSetBit - 1)  -- first leaf descendant
 --   rangeMax     = C + (lowestSetBit - 1)  -- last leaf descendant
 --
--- This eliminates the need for any new UDFs — the existing covering UDFs
--- return cell IDs, and SQL computes the ranges inline.
+-- geo.s2_covering_v4 differs from geo.s2_covering (v3): the backing Cloud
+-- Function lets the S2RegionCoverer choose optimal cell levels freely instead
+-- of constraining to levels 12/14/16. This produces tighter coverings with
+-- fewer false positives, since the coverer is not forced to snap to 3 specific
+-- levels. The SQL then converts each cell to a leaf-cell range inline.
 --
 -- Key differences from the v3 UDF query:
+--   - Uses geo.s2_covering_v4 (unconstrained levels) instead of geo.s2_covering
 --   - No interleaved table JOIN
---   - No DISTINCT needed
+--   - DISTINCT still needed (overlapping covering cells produce duplicate matches)
 --   - Range scans (BETWEEN) instead of point lookups (=)
 --   - Bitwise range computation in SQL
 --
@@ -43,7 +47,7 @@ WITH covering_ranges AS (
     SELECT
         covering_cell - ((covering_cell & (-covering_cell)) - 1) AS range_min,
         covering_cell + ((covering_cell & (-covering_cell)) - 1) AS range_max
-    FROM (SELECT geo.s2_covering(@centerLat, @centerLng, @radiusMeters) AS cells),
+    FROM (SELECT geo.s2_covering_v4(@centerLat, @centerLng, @radiusMeters) AS cells),
          UNNEST(cells) AS covering_cell
 ),
 candidates AS (

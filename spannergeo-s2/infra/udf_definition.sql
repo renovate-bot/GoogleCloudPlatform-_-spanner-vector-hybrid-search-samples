@@ -153,3 +153,82 @@ OPTIONS (
     endpoint = 'PLACEHOLDER_URL',
     max_batching_rows = 10
 );
+
+
+-- =============================================================================
+-- v4 Remote UDFs: Coverings for the range-scan schema
+-- =============================================================================
+-- The v4 schema stores a single leaf-level S2 CellId per POI and uses range
+-- scans (BETWEEN rangeMin AND rangeMax) instead of exact token matches. The
+-- backing Cloud Functions for these UDFs return covering cells at ANY level
+-- chosen by the S2RegionCoverer — they are NOT filtered to levels 12/14/16.
+--
+-- Why separate UDFs?
+--   - v3 UDFs (geo.s2_covering, geo.s2_covering_rect) constrain the coverer
+--     to levels 12, 14, and 16, matching the discrete tokens stored in the
+--     interleaved PointOfInterestLocationIndex table.
+--   - v4 UDFs let the coverer pick optimal levels freely (e.g., 12-20), which
+--     produces tighter coverings with fewer false positives. The SQL query
+--     then converts each covering cell to a leaf-cell range using bitwise
+--     arithmetic:
+--       lowestSetBit = cell & (-cell)
+--       rangeMin     = cell - (lowestSetBit - 1)
+--       rangeMax     = cell + (lowestSetBit - 1)
+-- =============================================================================
+
+
+-- -----------------------------------------------------------------------------
+-- geo.s2_covering_v4: Compute S2 covering cells for a circular region (v4)
+-- -----------------------------------------------------------------------------
+-- Given a center point (lat, lng) and radius in meters, returns an array of
+-- S2 Cell IDs (as signed INT64) that cover the search region. Unlike
+-- geo.s2_covering, the backing Cloud Function does NOT restrict output to
+-- levels 12/14/16 — the S2RegionCoverer chooses optimal cell levels freely.
+--
+-- Usage in a v4 query:
+--   WITH covering_ranges AS (
+--       SELECT
+--           cell - ((cell & (-cell)) - 1) AS range_min,
+--           cell + ((cell & (-cell)) - 1) AS range_max
+--       FROM (SELECT geo.s2_covering_v4(@lat, @lng, @radius) AS cells),
+--            UNNEST(cells) AS cell
+--   )
+--   SELECT ... FROM covering_ranges cr
+--   JOIN PointOfInterest@{FORCE_INDEX=PointOfInterestByS2Cell} poi
+--       ON poi.S2CellId BETWEEN cr.range_min AND cr.range_max
+-- -----------------------------------------------------------------------------
+CREATE FUNCTION geo.s2_covering_v4(
+    centerLat    FLOAT64,
+    centerLng    FLOAT64,
+    radiusMeters FLOAT64
+)
+RETURNS ARRAY<INT64>
+NOT DETERMINISTIC
+LANGUAGE REMOTE
+OPTIONS (
+    endpoint = 'PLACEHOLDER_URL',
+    max_batching_rows = 10
+);
+
+
+-- -----------------------------------------------------------------------------
+-- geo.s2_covering_rect_v4: Compute S2 covering cells for a rectangle (v4)
+-- -----------------------------------------------------------------------------
+-- Given a bounding box defined by its south-west (minLat, minLng) and
+-- north-east (maxLat, maxLng) corners, returns an array of S2 Cell IDs
+-- (as signed INT64) that cover the rectangle. Unlike geo.s2_covering_rect,
+-- the backing Cloud Function does NOT restrict output to levels 12/14/16.
+-- -----------------------------------------------------------------------------
+CREATE FUNCTION geo.s2_covering_rect_v4(
+    minLat FLOAT64,
+    minLng FLOAT64,
+    maxLat FLOAT64,
+    maxLng FLOAT64
+)
+RETURNS ARRAY<INT64>
+NOT DETERMINISTIC
+LANGUAGE REMOTE
+OPTIONS (
+    endpoint = 'PLACEHOLDER_URL',
+    max_batching_rows = 10
+);

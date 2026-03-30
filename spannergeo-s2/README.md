@@ -4,10 +4,12 @@
 
 This sample demonstrates how to perform geo-spatial indexing and querying on [Google Cloud Spanner](https://cloud.google.com/spanner) using the [S2 Geometry Library](https://s2geometry.io/). Spanner does not natively support spatial data types or spatial indexes, so we use S2 to encode geographic coordinates into indexable 64-bit cell IDs.
 
-The sample includes two approaches to querying:
+The sample exercises two dimensions of the design space:
 
-- **Client-side S2**: The application computes S2 coverings and binds cell ID ranges as query parameters.
-- **Remote UDFs**: Spanner calls Cloud Functions server-side to compute coverings and distances, so the query is self-contained SQL with no client-side S2 dependency.
+- **Schema design**: v3 (interleaved token index with multi-level cell IDs) vs. v4 (single leaf-level cell ID with range scans via a covering index)
+- **Computation approach**: Client-side S2 (application computes coverings and binds parameters) vs. Remote UDFs (Spanner calls Cloud Functions server-side for self-contained SQL)
+
+All four combinations are demonstrated across three query shapes (radius, bounding box, k-NN), for a total of twelve query types.
 
 ## Prerequisites
 
@@ -36,7 +38,14 @@ The sample includes two approaches to querying:
 3. **Run the demo:**
 
    ```bash
-   mvn exec:java -Dexec.args="YOUR_PROJECT YOUR_INSTANCE YOUR_DATABASE"
+   # Option 1: Use env vars (or put these in a .env file and source it)
+   export SPANNER_PROJECT_ID=your-project
+   export SPANNER_INSTANCE_ID=your-instance
+   export SPANNER_DATABASE_ID=your-database
+   mvn exec:java
+
+   # Option 2: Pass as CLI args
+   mvn exec:java -Dexec.args="your-project your-instance your-database"
    ```
 
 4. **(Optional) Deploy Remote UDFs** for the server-side S2 query demos:
@@ -57,7 +66,7 @@ The sample includes two approaches to querying:
 
 ## Schema Design
 
-We walk through three progressively refined schema designs. The recommended pattern is **v3** (token index table).
+We walk through four progressively refined schema designs. v3 and v4 are both production-ready patterns with different tradeoffs.
 
 ### v1: Naive Lat/Lng Columns ([`schemas/v1_naive.sql`](schemas/v1_naive.sql))
 
@@ -67,9 +76,9 @@ Store raw coordinates with a composite index. Simple but inefficient for radius 
 
 Add an S2 Cell ID column at a fixed level (e.g., level 16, ~150m cells). Better, but a fixed level means either too coarse or too fine for different query radii.
 
-### v3: Interleaved Token Index (Recommended) ([`schemas/v3_token_index.sql`](schemas/v3_token_index.sql))
+### v3: Interleaved Token Index ([`schemas/v3_token_index.sql`](schemas/v3_token_index.sql))
 
-The canonical pattern. Store multiple S2 tokens per location at varying cell levels in an interleaved child table. This balances precision vs. index size and supports queries at any radius. The production schema ([`infra/schema.sql`](infra/schema.sql)) uses this design.
+The canonical pattern. Store multiple S2 tokens per location at varying cell levels in an interleaved child table. This balances precision vs. index size and supports queries at any radius.
 
 ```sql
 CREATE TABLE PointOfInterest (
@@ -159,12 +168,12 @@ With Remote UDFs deployed, queries become self-contained SQL -- no client-side S
 
 ### Remote UDF Queries (v4)
 
-The v4 UDF queries use the same three Cloud Functions as v3 -- no new deployments needed. The key difference: covering cell IDs are converted to leaf-cell ranges using bitwise arithmetic directly in SQL (`C & (-C)` extracts the sentinel bit).
+The v4 UDF queries use dedicated covering UDFs (`geo.s2_covering_v4`, `geo.s2_covering_rect_v4`) backed by simpler Cloud Functions that return cells at any level the S2 coverer chooses -- no filtering to levels 12/14/16. The SQL converts each covering cell to a leaf-cell range using bitwise arithmetic (`C & (-C)` extracts the sentinel bit). The `geo.s2_distance` UDF is shared with v3.
 
-- **Radius search** ([`queries/v4_udf_query.sql`](queries/v4_udf_query.sql)) -- Combines `geo.s2_covering()` with inline bitwise range computation and `geo.s2_distance()` post-filter.
-- **Bounding box** and **k-NN** follow the same pattern with `geo.s2_covering_rect()` and appropriate post-filters.
+- **Radius search** ([`queries/v4_udf_query.sql`](queries/v4_udf_query.sql)) -- Combines `geo.s2_covering_v4()` with inline bitwise range computation and `geo.s2_distance()` post-filter.
+- **Bounding box** and **k-NN** follow the same pattern with `geo.s2_covering_rect_v4()` and appropriate post-filters.
 
-Here is the v4 UDF radius search query as an example. The client only provides `(lat, lng, radius)`:
+Here is the v3 UDF radius search query as an example. The client only provides `(lat, lng, radius)`:
 
 ```sql
 WITH candidates AS (
@@ -184,35 +193,41 @@ WHERE distance_meters <= @radiusMeters
 ORDER BY distance_meters;
 ```
 
-Three Remote UDFs power these queries:
+Five Remote UDFs power these queries:
 
 | UDF | Purpose |
 |-----|---------|
-| `geo.s2_covering(lat, lng, radius)` | Returns `ARRAY<INT64>` of S2 cell IDs covering a search circle |
-| `geo.s2_covering_rect(minLat, minLng, maxLat, maxLng)` | Returns `ARRAY<INT64>` of S2 cell IDs covering a bounding box |
+| `geo.s2_covering(lat, lng, radius)` | Returns `ARRAY<INT64>` of S2 cell IDs covering a search circle (v3, levels 12/14/16) |
+| `geo.s2_covering_v4(lat, lng, radius)` | Returns `ARRAY<INT64>` of S2 cell IDs covering a search circle (v4, any level) |
+| `geo.s2_covering_rect(minLat, minLng, maxLat, maxLng)` | Returns `ARRAY<INT64>` of S2 cell IDs covering a bounding box (v3, levels 12/14/16) |
+| `geo.s2_covering_rect_v4(minLat, minLng, maxLat, maxLng)` | Returns `ARRAY<INT64>` of S2 cell IDs covering a bounding box (v4, any level) |
 | `geo.s2_distance(lat1, lng1, lat2, lng2)` | Returns great-circle distance in meters between two points |
 
 > **Note:** Remote UDFs must live in a named schema (Spanner does not allow them in the default schema). This sample uses the `geo` schema. Additionally, `UNNEST` of a Remote UDF result requires materializing the array in a subquery first -- `UNNEST(geo.s2_covering(...))` directly in `FROM` is not supported.
 
 ## Remote UDFs
 
-Remote UDFs push S2 logic into Spanner so queries don't require a client-side S2 library. Three Cloud Functions back the UDFs:
+Remote UDFs push S2 logic into Spanner so queries don't require a client-side S2 library. Five Cloud Functions back the UDFs:
 
 | Cloud Function | Entry Point | Spanner UDF |
 |----------------|-------------|-------------|
 | `s2-covering` | `S2CoveringFunction` | `geo.s2_covering()` |
+| `s2-covering-v4` | `S2CoveringV4Function` | `geo.s2_covering_v4()` |
 | `s2-covering-rect` | `S2CoveringRectFunction` | `geo.s2_covering_rect()` |
+| `s2-covering-rect-v4` | `S2CoveringRectV4Function` | `geo.s2_covering_rect_v4()` |
 | `s2-distance` | `S2DistanceFunction` | `geo.s2_distance()` |
 
 ### Cloud Function Implementation
 
 The Cloud Functions live in [`cloud-function/`](cloud-function/) as a separate Maven project:
 
-- [`S2CoveringFunction.java`](cloud-function/src/main/java/com/example/spannergeo/functions/S2CoveringFunction.java) -- Computes S2 coverings for a circular region at levels 12, 14, 16. Returns cell IDs as **JSON strings** (not numbers) because S2 cell IDs exceed JSON's safe integer limit of 2^53.
-- [`S2CoveringRectFunction.java`](cloud-function/src/main/java/com/example/spannergeo/functions/S2CoveringRectFunction.java) -- Computes S2 coverings for a rectangular region (bounding box) at levels 12, 14, 16. Same wire protocol and cell ID encoding as `S2CoveringFunction`.
+- [`S2CoveringFunction.java`](cloud-function/src/main/java/com/example/spannergeo/functions/S2CoveringFunction.java) -- Computes S2 coverings for a circular region at levels 12, 14, 16 (v3). Returns cell IDs as **JSON strings** (not numbers) because S2 cell IDs exceed JSON's safe integer limit of 2^53.
+- [`S2CoveringV4Function.java`](cloud-function/src/main/java/com/example/spannergeo/functions/S2CoveringV4Function.java) -- Computes S2 coverings for a circular region at any level (v4). No level filtering -- returns all cells from the coverer for use with range scans.
+- [`S2CoveringRectFunction.java`](cloud-function/src/main/java/com/example/spannergeo/functions/S2CoveringRectFunction.java) -- Computes S2 coverings for a rectangular region (bounding box) at levels 12, 14, 16 (v3). Same wire protocol and cell ID encoding as `S2CoveringFunction`.
+- [`S2CoveringRectV4Function.java`](cloud-function/src/main/java/com/example/spannergeo/functions/S2CoveringRectV4Function.java) -- Same for rectangular regions (v4). No level filtering -- returns all cells from the coverer.
 - [`S2DistanceFunction.java`](cloud-function/src/main/java/com/example/spannergeo/functions/S2DistanceFunction.java) -- Computes great-circle distance using `S2LatLng.getDistance()`.
 
-All three implement the [Spanner Remote UDF wire protocol](https://cloud.google.com/spanner/docs/remote-functions):
+All five implement the [Spanner Remote UDF wire protocol](https://cloud.google.com/spanner/docs/remote-functions):
 - **Request:** `{"requestId": "...", "calls": [[args_row1], [args_row2], ...]}`
 - **Response:** `{"replies": [result1, result2, ...]}` (array length must match `calls`)
 
@@ -227,7 +242,7 @@ Deployment scripts are in [`deploy/`](deploy/). Run them in order:
 # 2. Deploy all three Cloud Functions (builds with Maven, then deploys)
 ./deploy/deploy-function.sh --project YOUR_PROJECT
 
-# 3. Grant Spanner's service agent permission to invoke the functions
+# 3. Grant Spanner's service agent the Spanner API Service Agent role on the project
 ./deploy/grant-permissions.sh --project YOUR_PROJECT
 ```
 
@@ -249,7 +264,9 @@ This deletes the Cloud Functions and removes the project-level `roles/spanner.se
 
 ```sql
 DROP FUNCTION IF EXISTS geo.s2_covering;
+DROP FUNCTION IF EXISTS geo.s2_covering_v4;
 DROP FUNCTION IF EXISTS geo.s2_covering_rect;
+DROP FUNCTION IF EXISTS geo.s2_covering_rect_v4;
 DROP FUNCTION IF EXISTS geo.s2_distance;
 DROP SCHEMA IF EXISTS geo;
 ```
@@ -297,7 +314,7 @@ All mutations happen in a single Spanner transaction. Both v3 and v4 indexes are
 4. No S2 library dependency in the DAO method -- pure SQL
 
 **v4 Remote UDF** (e.g., `SpannerGeoDao.radiusSearchWithUdfV4()`):
-1. Same parameters as v3 UDF -- the same three Cloud Functions are reused
+1. Uses dedicated v4 covering UDFs (`geo.s2_covering_v4`) that return cells at any level. The `geo.s2_distance` UDF is shared with v3
 2. Covering cell IDs are converted to leaf-cell ranges using bitwise arithmetic in SQL: `C & (-C)` extracts the sentinel bit, then `C - (bit - 1)` and `C + (bit - 1)` give the range
 3. Range scans hit the `PointOfInterestByS2Cell` covering index directly
 
@@ -430,7 +447,7 @@ sample/
 │
 ├── infra/
 │   ├── schema.sql            # Production schema (v3 token index + v4 range index)
-│   └── udf_definition.sql    # Remote UDF DDL (geo.s2_covering, geo.s2_covering_rect, geo.s2_distance)
+│   └── udf_definition.sql    # Remote UDF DDL (v3: geo.s2_covering, geo.s2_covering_rect; v4: geo.s2_covering_v4, geo.s2_covering_rect_v4; shared: geo.s2_distance)
 │
 ├── schemas/                  # All schema iterations (for reference)
 │   ├── v1_naive.sql
@@ -452,7 +469,9 @@ sample/
 │   ├── pom.xml               # Separate Maven project
 │   └── src/main/java/.../functions/
 │       ├── S2CoveringFunction.java
+│       ├── S2CoveringV4Function.java
 │       ├── S2CoveringRectFunction.java
+│       ├── S2CoveringRectV4Function.java
 │       └── S2DistanceFunction.java
 │
 ├── deploy/                   # Deployment & IAM scripts
@@ -479,7 +498,6 @@ sample/
 | 20    | ~10 m             | Building-level (not used in this sample) |
 | 30    | ~1 cm             | Maximum precision (leaf cell) |
 
-
 ## Some Gotchas to Keep in Mind
 
 **Remote Functions must live in a named schema**. Spanner does not allow Remote Functions in the default schema. We use `CREATE SCHEMA IF NOT EXISTS geo` and qualify all calls as `geo.s2_covering()`, `geo.s2_covering_rect()`, and `geo.s2_distance()`.
@@ -495,5 +513,5 @@ sample/
 - [S2 Geometry Library](https://s2geometry.io/)
 - [S2 Cell Hierarchy](https://s2geometry.io/devguide/s2cell_hierarchy.html)
 - [Google Cloud Spanner DDL Reference](https://cloud.google.com/spanner/docs/reference/standard-sql/data-definition-language)
-- [Spanner Remote Functions](https://docs.cloud.google.com/spanner/docs/cloud-run-remote-function)
+- [Spanner Remote UDFs](https://cloud.google.com/spanner/docs/remote-functions)
 - [Spanner Interleaved Tables](https://cloud.google.com/spanner/docs/schema-and-data-model#creating-interleaved-tables)
