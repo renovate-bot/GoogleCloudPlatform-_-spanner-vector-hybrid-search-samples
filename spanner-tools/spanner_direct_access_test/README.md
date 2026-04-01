@@ -5,6 +5,7 @@ This repository contains a small Java 17 / Maven benchmark scaffold for evaluati
 Configuration is loaded from `.env`, authentication uses ADC from the VM, and `GOOGLE_SPANNER_ENABLE_DIRECT_ACCESS` is expected to be set explicitly.
 
 NOTE: It's important to set 'GOOGLE_SPANNER_ENABLE_DIRECT_ACCESS' to true to realize the latency benefits of "DIRECT PATH".
+IMPORTANT: Use the .env.example to create a .env file at the same folder level. This is required and please fill in the values so that it matches your environment.
 
 ## Schema Overview
 
