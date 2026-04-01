@@ -68,31 +68,24 @@ Also see [schema.sql](schema.sql).
 
 The Java code in this repository is intentionally small and organized around a few focused classes:
 
-`src/main/java/com/spanner/benchmark/`  
-├── [Main.java](src/main/java/com/spanner/benchmark/Main.java)  
-│   CLI entry point that loads configuration, creates the Spanner client, and dispatches to `populate` or `benchmark`  
-├── `benchmark/`  
-│   └── [BenchmarkCommand.java](src/main/java/com/spanner/benchmark/benchmark/BenchmarkCommand.java)  
-│       Benchmark runner that loads sample keys, executes the configured scenarios, and reports latency, row-count, throughput, and concurrency-sweep results  
-├── `config/`  
-│   ├── [AppConfig.java](src/main/java/com/spanner/benchmark/config/AppConfig.java)  
-│   │   Typed application configuration loaded from `.env` and environment variables  
-│   └── [EnvFileLoader.java](src/main/java/com/spanner/benchmark/config/EnvFileLoader.java)  
-│       Minimal `.env` parser used by `AppConfig`  
-├── `model/`  
-│   ├── [CustomerInsightKey.java](src/main/java/com/spanner/benchmark/model/CustomerInsightKey.java)  
-│   │   Key model for point reads and exact-key SQL against `customer_insights`  
-│   └── [CustomerInsightPhoneKey.java](src/main/java/com/spanner/benchmark/model/CustomerInsightPhoneKey.java)  
-│       Key model for point reads and exact-key SQL against `customer_insights_phone`  
-├── `populate/`  
-│   └── [PopulateCommand.java](src/main/java/com/spanner/benchmark/populate/PopulateCommand.java)  
-│       Synthetic data loader that generates benchmark rows and writes them into both `customer_insights` and `customer_insights_phone`  
-├── `spanner/`  
-│   └── [SpannerClientFactory.java](src/main/java/com/spanner/benchmark/spanner/SpannerClientFactory.java)  
-│       Central place for building the Spanner client with project, endpoint, emulator, and direct-access settings  
-└── `util/`  
-    └── [CliArguments.java](src/main/java/com/spanner/benchmark/util/CliArguments.java)  
-        Small command-line option parser for `--flag value` style arguments  
+Source root: `src/main/java/com/spanner/benchmark/`
+
+- Root
+  [Main.java](src/main/java/com/spanner/benchmark/Main.java): CLI entry point that loads configuration, creates the Spanner client, and dispatches to `populate` or `benchmark`
+- `benchmark/`
+  [BenchmarkCommand.java](src/main/java/com/spanner/benchmark/benchmark/BenchmarkCommand.java): benchmark runner that loads sample keys, executes the configured scenarios, and reports latency, row-count, throughput, and concurrency-sweep results
+- `config/`
+  [AppConfig.java](src/main/java/com/spanner/benchmark/config/AppConfig.java): typed application configuration loaded from `.env` and environment variables
+  [EnvFileLoader.java](src/main/java/com/spanner/benchmark/config/EnvFileLoader.java): minimal `.env` parser used by `AppConfig`
+- `model/`
+  [CustomerInsightKey.java](src/main/java/com/spanner/benchmark/model/CustomerInsightKey.java): key model for point reads and exact-key SQL against `customer_insights`
+  [CustomerInsightPhoneKey.java](src/main/java/com/spanner/benchmark/model/CustomerInsightPhoneKey.java): key model for point reads and exact-key SQL against `customer_insights_phone`
+- `populate/`
+  [PopulateCommand.java](src/main/java/com/spanner/benchmark/populate/PopulateCommand.java): synthetic data loader that generates benchmark rows and writes them into both `customer_insights` and `customer_insights_phone`
+- `spanner/`
+  [SpannerClientFactory.java](src/main/java/com/spanner/benchmark/spanner/SpannerClientFactory.java): central place for building the Spanner client with project, endpoint, emulator, and direct-access settings
+- `util/`
+  [CliArguments.java](src/main/java/com/spanner/benchmark/util/CliArguments.java): small command-line option parser for `--flag value` style arguments
 
 At a high level, execution flows like this:
 
