@@ -1,6 +1,6 @@
 # Spanner Benchmark POC
 
-This repository contains a small Java 17 / Maven benchmark scaffold for evaluating Google Cloud Spanner read and query performance against the `customer_insights` and `customer_insights_phone` tables in [schema.sql](/home/karthit_google_com/code/kt-spanner-stuff/verizon_soi_poc/schema.sql).
+This repository contains a small Java 17 / Maven benchmark scaffold for evaluating Google Cloud Spanner read and query performance against the `customer_insights` and `customer_insights_phone` tables in [schema.sql](schema.sql).
 
 Configuration is loaded from `.env`, authentication uses ADC from the VM, and `GOOGLE_SPANNER_ENABLE_DIRECT_ACCESS` is expected to be set explicitly.
 
@@ -24,7 +24,7 @@ For this benchmark specifically:
 
 - the instance and database identifiers are read from `.env`
 - authentication is expected to come from ADC rather than an embedded service-account key
-- the intended schema for this repo lives in [`schema.sql`](/home/karthit_google_com/code/kt-spanner-stuff/verizon_soi_poc/schema.sql)
+- the intended schema for this repo lives in [`schema.sql`](schema.sql)
 - schema changes can be applied with `gcloud spanner databases ddl update`, which is also the approach described in the Spanner schema-update documentation
 
 If you are starting from scratch, the usual flow is:
@@ -32,8 +32,8 @@ If you are starting from scratch, the usual flow is:
 1. Create or choose a Google Cloud project.
 2. Create a Spanner instance in the target region or instance configuration.
 3. Create a database in that instance.
-4. Apply the schema from [`schema.sql`](/home/karthit_google_com/code/kt-spanner-stuff/verizon_soi_poc/schema.sql).
-5. Create a local `.env` from [`.env.example`](/home/karthit_google_com/code/kt-spanner-stuff/verizon_soi_poc/.env.example).
+4. Apply the schema from [`schema.sql`](schema.sql).
+5. Create a local `.env` from [`.env.example`](.env.example).
 6. Verify ADC is available in the shell where you will run the benchmark.
 7. Compile, populate, and run benchmark scenarios from this repository.
 
@@ -63,6 +63,27 @@ The benchmark is set up this way so the same logical data can be exercised throu
 That makes it easier to compare how key order changes point-read behavior, prefix scans, and SQL filtering selectivity while keeping the row contents the same.
 
 Also see [schema.sql](schema.sql).
+
+## Java Source Layout
+
+The Java code in this repository is intentionally small and organized around a few focused classes:
+
+- [`src/main/java/com/spanner/benchmark/Main.java`](src/main/java/com/spanner/benchmark/Main.java): CLI entry point that loads configuration, creates the Spanner client, and dispatches to `populate` or `benchmark`
+- [`src/main/java/com/spanner/benchmark/benchmark/BenchmarkCommand.java`](src/main/java/com/spanner/benchmark/benchmark/BenchmarkCommand.java): benchmark runner that loads sample keys, executes the configured scenarios, and reports latency, row-count, throughput, and concurrency-sweep results
+- [`src/main/java/com/spanner/benchmark/populate/PopulateCommand.java`](src/main/java/com/spanner/benchmark/populate/PopulateCommand.java): synthetic data loader that generates benchmark rows and writes them into both `customer_insights` and `customer_insights_phone`
+- [`src/main/java/com/spanner/benchmark/spanner/SpannerClientFactory.java`](src/main/java/com/spanner/benchmark/spanner/SpannerClientFactory.java): central place for building the Spanner client with project, endpoint, emulator, and direct-access settings
+- [`src/main/java/com/spanner/benchmark/config/AppConfig.java`](src/main/java/com/spanner/benchmark/config/AppConfig.java): typed application configuration loaded from `.env` and environment variables
+- [`src/main/java/com/spanner/benchmark/config/EnvFileLoader.java`](src/main/java/com/spanner/benchmark/config/EnvFileLoader.java): minimal `.env` parser used by `AppConfig`
+- [`src/main/java/com/spanner/benchmark/util/CliArguments.java`](src/main/java/com/spanner/benchmark/util/CliArguments.java): small command-line option parser for `--flag value` style arguments
+- [`src/main/java/com/spanner/benchmark/model/CustomerInsightKey.java`](src/main/java/com/spanner/benchmark/model/CustomerInsightKey.java): key model for point reads and exact-key SQL against `customer_insights`
+- [`src/main/java/com/spanner/benchmark/model/CustomerInsightPhoneKey.java`](src/main/java/com/spanner/benchmark/model/CustomerInsightPhoneKey.java): key model for point reads and exact-key SQL against `customer_insights_phone`
+
+At a high level, execution flows like this:
+
+1. [`Main.java`](src/main/java/com/spanner/benchmark/Main.java) loads config and opens a Spanner client.
+2. [`PopulateCommand.java`](src/main/java/com/spanner/benchmark/populate/PopulateCommand.java) or [`BenchmarkCommand.java`](src/main/java/com/spanner/benchmark/benchmark/BenchmarkCommand.java) handles the requested command.
+3. [`SpannerClientFactory.java`](src/main/java/com/spanner/benchmark/spanner/SpannerClientFactory.java) controls how the Java client connects to Spanner.
+4. [`AppConfig.java`](src/main/java/com/spanner/benchmark/config/AppConfig.java) and [`EnvFileLoader.java`](src/main/java/com/spanner/benchmark/config/EnvFileLoader.java) provide runtime settings from `.env`.
 
 
 ## Commands
