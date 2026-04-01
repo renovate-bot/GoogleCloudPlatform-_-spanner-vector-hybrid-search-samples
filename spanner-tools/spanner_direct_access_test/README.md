@@ -4,8 +4,38 @@ This repository contains a small Java 17 / Maven benchmark scaffold for evaluati
 
 Configuration is loaded from `.env`, authentication uses ADC from the VM, and `GOOGLE_SPANNER_ENABLE_DIRECT_ACCESS` is expected to be set explicitly.
 
-NOTE: It's important to set 'GOOGLE_SPANNER_ENABLE_DIRECT_ACCESS' to true to realize the latency benefits of "DIRECT PATH".
-IMPORTANT: Use the .env.example to create a .env file at the same folder level. This is required and please fill in the values so that it matches your environment.
+**NOTE**: It's important to set 'GOOGLE_SPANNER_ENABLE_DIRECT_ACCESS' to true to realize the latency benefits of "DIRECT PATH".
+
+**IMPORTANT**: Use the .env.example to create a .env file at the same folder level. This is required and please fill in the values so that it matches your environment.
+
+## Spanner Background
+
+This repository assumes you already have a Google Cloud project, a Spanner instance, and a database available for the benchmark. If you need to set those up or want the canonical product references, start with these official docs:
+
+- Spanner product documentation: https://cloud.google.com/spanner/docs
+- Set up Application Default Credentials (ADC): https://cloud.google.com/docs/authentication/provide-credentials-adc
+- Create and manage Spanner instances: https://cloud.google.com/spanner/docs/create-manage-instances
+- Create and query a database: https://cloud.google.com/spanner/docs/create-query-database-console
+- Make schema updates with DDL: https://cloud.google.com/spanner/docs/schema-updates
+- Spanner client libraries overview: https://cloud.google.com/spanner/docs/reference/libraries
+- Java client library reference: https://cloud.google.com/java/docs/reference/google-cloud-spanner/latest/overview
+
+For this benchmark specifically:
+
+- the instance and database identifiers are read from `.env`
+- authentication is expected to come from ADC rather than an embedded service-account key
+- the intended schema for this repo lives in [`schema.sql`](/home/karthit_google_com/code/kt-spanner-stuff/verizon_soi_poc/schema.sql)
+- schema changes can be applied with `gcloud spanner databases ddl update`, which is also the approach described in the Spanner schema-update documentation
+
+If you are starting from scratch, the usual flow is:
+
+1. Create or choose a Google Cloud project.
+2. Create a Spanner instance in the target region or instance configuration.
+3. Create a database in that instance.
+4. Apply the schema from [`schema.sql`](/home/karthit_google_com/code/kt-spanner-stuff/verizon_soi_poc/schema.sql).
+5. Create a local `.env` from [`.env.example`](/home/karthit_google_com/code/kt-spanner-stuff/verizon_soi_poc/.env.example).
+6. Verify ADC is available in the shell where you will run the benchmark.
+7. Compile, populate, and run benchmark scenarios from this repository.
 
 ## Schema Overview
 
