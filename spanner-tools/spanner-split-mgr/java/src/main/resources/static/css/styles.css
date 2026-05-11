@@ -1,0 +1,10 @@
+/* Custom styles for Spanner Split Points Manager */
+/* Most styling is handled by TailwindCSS CDN */
+
+tr {
+    transition: background-color 150ms ease-in-out;
+}
+
+.font-mono {
+    scrollbar-width: thin;
+}

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      th:fragment="layout(pageTitle, content)">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:replace="${pageTitle}">Spanner Split Points Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="/" class="text-xl font-bold text-gray-900">Spanner Split Manager</a>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="/" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Dashboard
+                        </a>
+                        <a href="/settings" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Settings
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-1 max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 w-full">
+        <th:block th:replace="${content}"></th:block>
+    </main>
+
+    <footer class="bg-white border-t mt-auto">
+        <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+            <p class="text-center text-sm text-gray-500">Spanner Split Points Manager</p>
+        </div>
+    </footer>
+
+    <div th:if="${connectionInfo != null and connectionInfo['isConfigured']}"
+         class="fixed bottom-4 right-4 bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-w-xs z-50">
+        <div class="flex items-center gap-2 mb-1">
+            <div class="w-2 h-2 rounded-full bg-green-500"></div>
+            <span class="text-xs font-medium text-gray-700">Connected to Spanner</span>
+        </div>
+        <div class="text-xs text-gray-500 space-y-0.5">
+            <div th:if="${connectionInfo['projectId']}" class="truncate" th:title="${connectionInfo['projectId']}">
+                <span class="text-gray-400">Project:</span> <span th:text="${connectionInfo['projectId']}"></span>
+            </div>
+            <div class="truncate" th:title="${connectionInfo['instanceId']}">
+                <span class="text-gray-400">Instance:</span> <span th:text="${connectionInfo['instanceId']}"></span>
+            </div>
+            <div class="truncate" th:title="${connectionInfo['databaseId']}">
+                <span class="text-gray-400">Database:</span> <span th:text="${connectionInfo['databaseId']}"></span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
