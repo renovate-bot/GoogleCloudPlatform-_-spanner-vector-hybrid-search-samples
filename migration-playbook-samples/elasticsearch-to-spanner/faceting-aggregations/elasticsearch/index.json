@@ -1,0 +1,50 @@
+{
+  "mappings": {
+    "properties": {
+      "tenant_id": {
+        "type": "keyword"
+      },
+      "product_id": {
+        "type": "keyword"
+      },
+      "title": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      },
+      "description": {
+        "type": "text"
+      },
+      "category": {
+        "type": "keyword"
+      },
+      "brand": {
+        "type": "keyword"
+      },
+      "colors": {
+        "type": "keyword"
+      },
+      "sizes": {
+        "type": "keyword"
+      },
+      "price_cents": {
+        "type": "integer"
+      },
+      "rating": {
+        "type": "float"
+      },
+      "inventory_count": {
+        "type": "integer"
+      },
+      "status": {
+        "type": "keyword"
+      },
+      "updated_at": {
+        "type": "date"
+      }
+    }
+  }
+}

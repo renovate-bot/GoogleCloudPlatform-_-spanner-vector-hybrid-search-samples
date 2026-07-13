@@ -1,0 +1,36 @@
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match": {
+            "title": {
+              "query": "trail runing shoo",
+              "fuzziness": "AUTO",
+              "operator": "and",
+              "prefix_length": 1,
+              "max_expansions": 50
+            }
+          }
+        }
+      ],
+      "filter": [
+        {
+          "term": {
+            "tenant_id": "tenant-a"
+          }
+        },
+        {
+          "term": {
+            "status": "active"
+          }
+        }
+      ]
+    }
+  },
+  "_source": [
+    "product_id",
+    "title",
+    "brand"
+  ]
+}

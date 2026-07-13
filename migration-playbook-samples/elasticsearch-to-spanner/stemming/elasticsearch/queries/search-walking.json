@@ -1,0 +1,34 @@
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "multi_match": {
+            "query": "walking",
+            "fields": [
+              "title^2",
+              "description"
+            ]
+          }
+        }
+      ],
+      "filter": [
+        {
+          "term": {
+            "tenant_id": "tenant-a"
+          }
+        },
+        {
+          "term": {
+            "status": "active"
+          }
+        }
+      ]
+    }
+  },
+  "_source": [
+    "product_id",
+    "title",
+    "description"
+  ]
+}

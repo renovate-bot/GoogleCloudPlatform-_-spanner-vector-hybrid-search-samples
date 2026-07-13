@@ -1,0 +1,8 @@
+{"index":{"_id":"trail-1"}}
+{"tenant_id":"tenant-a","product_id":"trail-1","title":"Trail running shoe","brand":"Northstar","status":"active"}
+{"index":{"_id":"hike-1"}}
+{"tenant_id":"tenant-a","product_id":"hike-1","title":"Waterproof hiking boot","brand":"Summit","status":"active"}
+{"index":{"_id":"walk-1"}}
+{"tenant_id":"tenant-a","product_id":"walk-1","title":"City walking sneaker","brand":"Metro","status":"active"}
+{"index":{"_id":"sandal-1"}}
+{"tenant_id":"tenant-a","product_id":"sandal-1","title":"Recovery sandal","brand":"Northstar","status":"active"}

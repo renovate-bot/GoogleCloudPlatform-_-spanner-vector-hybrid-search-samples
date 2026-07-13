@@ -1,0 +1,16 @@
+{"index":{"_id":"trail-1"}}
+{"tenant_id":"tenant-a","product_id":"trail-1","title":"Waterproof trail running shoe","description":"Lightweight waterproof trail shoe for wet mountain runs.","category":"footwear","brand":"Summit","colors":["black","blue"],"sizes":["9","10","11"],"price_cents":12999,"rating":4.7,"inventory_count":18,"status":"active","updated_at":"2026-05-01T12:00:00Z"}
+{"index":{"_id":"trail-2"}}
+{"tenant_id":"tenant-a","product_id":"trail-2","title":"Trail running shoe","description":"Breathable trail shoe for dry singletrack routes.","category":"footwear","brand":"Northstar","colors":["green","black"],"sizes":["8","9","10"],"price_cents":9999,"rating":4.4,"inventory_count":25,"status":"active","updated_at":"2026-05-02T12:00:00Z"}
+{"index":{"_id":"hike-1"}}
+{"tenant_id":"tenant-a","product_id":"hike-1","title":"Waterproof hiking boot","description":"Durable waterproof boot for rocky trail hikes.","category":"footwear","brand":"Summit","colors":["brown","black"],"sizes":["10","11","12"],"price_cents":17999,"rating":4.8,"inventory_count":12,"status":"active","updated_at":"2026-05-03T12:00:00Z"}
+{"index":{"_id":"jacket-1"}}
+{"tenant_id":"tenant-a","product_id":"jacket-1","title":"Waterproof trail jacket","description":"Packable waterproof shell for trail running and hiking.","category":"apparel","brand":"Apex","colors":["blue","red"],"sizes":["S","M","L"],"price_cents":14999,"rating":4.6,"inventory_count":9,"status":"active","updated_at":"2026-05-04T12:00:00Z"}
+{"index":{"_id":"pack-1"}}
+{"tenant_id":"tenant-a","product_id":"pack-1","title":"Trail hydration pack","description":"Minimal hydration pack for long trail runs.","category":"gear","brand":"Northstar","colors":["black"],"sizes":["one-size"],"price_cents":8999,"rating":4.3,"inventory_count":20,"status":"active","updated_at":"2026-05-05T12:00:00Z"}
+{"index":{"_id":"socks-1"}}
+{"tenant_id":"tenant-a","product_id":"socks-1","title":"Trail running socks","description":"Cushioned socks for trail running in wet weather.","category":"apparel","brand":"Metro","colors":["gray","black"],"sizes":["M","L"],"price_cents":1999,"rating":4.2,"inventory_count":50,"status":"active","updated_at":"2026-05-06T12:00:00Z"}
+{"index":{"_id":"sandal-1"}}
+{"tenant_id":"tenant-a","product_id":"sandal-1","title":"Recovery sandal","description":"Soft sandal for recovery after long trail days.","category":"footwear","brand":"Metro","colors":["black"],"sizes":["9","10","11"],"price_cents":4999,"rating":4.1,"inventory_count":16,"status":"active","updated_at":"2026-05-07T12:00:00Z"}
+{"index":{"_id":"tent-1"}}
+{"tenant_id":"tenant-a","product_id":"tent-1","title":"Backpacking tent","description":"Two-person tent for mountain trail trips.","category":"gear","brand":"Apex","colors":["green"],"sizes":["two-person"],"price_cents":24999,"rating":4.9,"inventory_count":5,"status":"active","updated_at":"2026-05-08T12:00:00Z"}

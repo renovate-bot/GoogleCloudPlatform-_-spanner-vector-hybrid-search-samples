@@ -1,0 +1,12 @@
+{"index":{"_id":"trail-1"}}
+{"tenant_id":"tenant-a","product_id":"trail-1","title":"Trail running shoe","description":"Lightweight shoe for running on mountain trails.","category":"footwear","status":"active"}
+{"index":{"_id":"jacket-1"}}
+{"tenant_id":"tenant-a","product_id":"jacket-1","title":"Waterproof jacket","description":"Packable shell for wet trail runs.","category":"apparel","status":"active"}
+{"index":{"_id":"pack-1"}}
+{"tenant_id":"tenant-a","product_id":"pack-1","title":"Trail hydration pack","description":"Low-profile pack for carrying water on long runs.","category":"gear","status":"active"}
+{"index":{"_id":"umbrella-1"}}
+{"tenant_id":"tenant-a","product_id":"umbrella-1","title":"Compact umbrella","description":"Small umbrella for everyday commuting.","category":"gear","status":"active"}
+{"index":{"_id":"archived-jacket-1"}}
+{"tenant_id":"tenant-a","product_id":"archived-jacket-1","title":"Rain jacket archive sample","description":"Inactive waterproof layer used to verify status filters.","category":"apparel","status":"inactive"}
+{"index":{"_id":"tenant-b-shoe-1"}}
+{"tenant_id":"tenant-b","product_id":"tenant-b-shoe-1","title":"Running shoe tenant B","description":"Tenant-isolated shoe record.","category":"footwear","status":"active"}

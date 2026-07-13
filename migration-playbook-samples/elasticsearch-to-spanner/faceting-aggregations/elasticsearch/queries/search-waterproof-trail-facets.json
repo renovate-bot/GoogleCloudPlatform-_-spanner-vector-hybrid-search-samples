@@ -1,0 +1,100 @@
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "multi_match": {
+            "query": "waterproof trail",
+            "fields": [
+              "title^3",
+              "description"
+            ],
+            "operator": "and"
+          }
+        }
+      ],
+      "filter": [
+        {
+          "term": {
+            "tenant_id": "tenant-a"
+          }
+        },
+        {
+          "term": {
+            "status": "active"
+          }
+        }
+      ]
+    }
+  },
+  "size": 5,
+  "sort": [
+    {
+      "rating": "desc"
+    },
+    {
+      "product_id": "asc"
+    }
+  ],
+  "_source": [
+    "product_id",
+    "title",
+    "category",
+    "brand",
+    "price_cents",
+    "rating"
+  ],
+  "aggs": {
+    "categories": {
+      "terms": {
+        "field": "category",
+        "size": 10
+      }
+    },
+    "brands": {
+      "terms": {
+        "field": "brand",
+        "size": 10
+      }
+    },
+    "colors": {
+      "terms": {
+        "field": "colors",
+        "size": 10
+      }
+    },
+    "sizes": {
+      "terms": {
+        "field": "sizes",
+        "size": 10
+      }
+    },
+    "price_ranges": {
+      "range": {
+        "field": "price_cents",
+        "ranges": [
+          {
+            "to": 10000
+          },
+          {
+            "from": 10000,
+            "to": 15000
+          },
+          {
+            "from": 15000
+          }
+        ]
+      }
+    },
+    "avg_price_cents": {
+      "avg": {
+        "field": "price_cents"
+      }
+    },
+    "total_inventory": {
+      "sum": {
+        "field": "inventory_count"
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "mappings": {
+    "properties": {
+      "tenant_id": {"type": "keyword"},
+      "product_id": {"type": "keyword"},
+      "title": {"type": "text"},
+      "description": {"type": "text"},
+      "category": {"type": "keyword"},
+      "status": {"type": "keyword"},
+      "price_cents": {"type": "integer"},
+      "updated_at": {"type": "date"}
+    }
+  }
+}

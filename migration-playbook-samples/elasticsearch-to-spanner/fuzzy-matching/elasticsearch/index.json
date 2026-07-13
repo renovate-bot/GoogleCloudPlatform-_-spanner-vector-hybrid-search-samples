@@ -1,0 +1,21 @@
+{
+  "mappings": {
+    "properties": {
+      "tenant_id": {
+        "type": "keyword"
+      },
+      "product_id": {
+        "type": "keyword"
+      },
+      "title": {
+        "type": "text"
+      },
+      "brand": {
+        "type": "keyword"
+      },
+      "status": {
+        "type": "keyword"
+      }
+    }
+  }
+}

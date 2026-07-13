@@ -1,0 +1,44 @@
+{
+  "settings": {
+    "analysis": {
+      "filter": {
+        "product_dictionary": {
+          "type": "synonym_graph",
+          "synonyms": [
+            "raincoat, rain jacket, waterproof jacket",
+            "sneaker, trainer, running shoe",
+            "daypack, hydration pack, running vest"
+          ]
+        }
+      },
+      "analyzer": {
+        "product_index_analyzer": {
+          "tokenizer": "standard",
+          "filter": ["lowercase"]
+        },
+        "product_search_analyzer": {
+          "tokenizer": "standard",
+          "filter": ["lowercase", "product_dictionary"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "tenant_id": {"type": "keyword"},
+      "product_id": {"type": "keyword"},
+      "title": {
+        "type": "text",
+        "analyzer": "product_index_analyzer",
+        "search_analyzer": "product_search_analyzer"
+      },
+      "description": {
+        "type": "text",
+        "analyzer": "product_index_analyzer",
+        "search_analyzer": "product_search_analyzer"
+      },
+      "category": {"type": "keyword"},
+      "status": {"type": "keyword"}
+    }
+  }
+}

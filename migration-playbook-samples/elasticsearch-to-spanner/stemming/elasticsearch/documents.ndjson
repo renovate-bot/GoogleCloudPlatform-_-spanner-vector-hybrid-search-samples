@@ -1,0 +1,8 @@
+{"index":{"_id":"run-1"}}
+{"tenant_id":"tenant-a","product_id":"run-1","title":"Lightweight trail running shoe","description":"Runners use this shoe for running on rocky trails.","category":"footwear","status":"active"}
+{"index":{"_id":"walk-1"}}
+{"tenant_id":"tenant-a","product_id":"walk-1","title":"City walking sneaker","description":"Comfortable support for daily walks and walking commutes.","category":"footwear","status":"active"}
+{"index":{"_id":"hike-1"}}
+{"tenant_id":"tenant-a","product_id":"hike-1","title":"Waterproof hiking boot","description":"Built for hikes, hiking trips, and wet mountain paths.","category":"footwear","status":"active"}
+{"index":{"_id":"recover-1"}}
+{"tenant_id":"tenant-a","product_id":"recover-1","title":"Runner recovery sandal","description":"Soft sandal for recovery after long runs.","category":"footwear","status":"active"}

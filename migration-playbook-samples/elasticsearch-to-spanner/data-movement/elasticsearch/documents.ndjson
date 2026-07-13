@@ -1,0 +1,10 @@
+{"index":{"_id":"trail-1"}}
+{"tenant_id":"tenant-a","product_id":"trail-1","title":"Waterproof trail running shoe","description":"Lightweight waterproof trail shoe for wet mountain runs.","category":"footwear","status":"active","price_cents":12999,"updated_at":"2026-05-01T12:00:00Z"}
+{"index":{"_id":"hike-1"}}
+{"tenant_id":"tenant-a","product_id":"hike-1","title":"Waterproof hiking boot","description":"Durable waterproof boot for rocky trail hikes.","category":"footwear","status":"active","price_cents":17999,"updated_at":"2026-05-03T12:00:00Z"}
+{"index":{"_id":"jacket-1"}}
+{"tenant_id":"tenant-a","product_id":"jacket-1","title":"Waterproof trail jacket","description":"Packable waterproof shell for trail running and hiking.","category":"apparel","status":"active","price_cents":14999,"updated_at":"2026-05-04T12:00:00Z"}
+{"index":{"_id":"pack-1"}}
+{"tenant_id":"tenant-a","product_id":"pack-1","title":"Trail hydration pack","description":"Minimal hydration pack for long trail runs.","category":"gear","status":"active","price_cents":8999,"updated_at":"2026-05-05T12:00:00Z"}
+{"index":{"_id":"archived-1"}}
+{"tenant_id":"tenant-a","product_id":"archived-1","title":"Archived trail shoe","description":"Inactive record included to prove status and count validation.","category":"footwear","status":"inactive","price_cents":7999,"updated_at":"2026-05-06T12:00:00Z"}
