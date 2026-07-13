@@ -1,5 +1,7 @@
 ## 🚀 Supercharging AI Coding Agents with Spanner Skills
 
+[Back to Spanner AI Samples](../README.md)
+
 This repository contains a specialized AI **Skill File** - [spanner_multimodel_skill.md](spanner_multimodel_skill.md) -  designed to teach agentic coding assistants (like **Gemini CLI** or **Antigravity**) the
 latest capabilities and syntaxes for Google Cloud Spanner's modern multi-model engine.
 

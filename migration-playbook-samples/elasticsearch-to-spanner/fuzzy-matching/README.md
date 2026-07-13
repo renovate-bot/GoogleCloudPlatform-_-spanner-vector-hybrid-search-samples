@@ -1,5 +1,7 @@
 # Fuzzy Matching Sample
 
+[Back to Elasticsearch to Spanner samples](../README.md)
+
 This sample compares Elasticsearch typo-tolerant text search with a Spanner Full Text Search schema that uses n-gram substring tokenization, `SEARCH_NGRAMS`, and `SCORE_NGRAMS`.
 
 ## Elasticsearch

@@ -1,5 +1,7 @@
 # Gemini CLI Extension - Spanner Managed MCP Endpoint
 
+[Back to Spanner MCP Samples](../README.md)
+
 > [!NOTE]
 > This extension is currently in beta (pre-v1.0), and may see breaking changes until the first stable release (v1.0).
 

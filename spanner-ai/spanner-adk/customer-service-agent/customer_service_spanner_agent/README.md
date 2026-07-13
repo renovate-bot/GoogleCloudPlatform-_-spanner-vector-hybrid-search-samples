@@ -1,5 +1,7 @@
 # E-commerce Chatbot with Spanner and Google ADK
 
+[Back to Spanner AI Samples](../../../README.md)
+
 This sample project demonstrates a chatbot built using the powerful integration between **Google Cloud Spanner** and the **Google Agent Development Kit (ADK)**. The application provides a simple web interface for customer service agents at an e-commerce company to quickly look up information about customer orders and products using natural language.
 
 The goal is to showcase how to build a data-driven agent that can perform structured database queries based on conversational input, leveraging the global consistency and horizontal scalability of Spanner.
@@ -13,7 +15,7 @@ The application consists of two main components that work together to deliver th
 *   **ADK API Server**: The core of the agent logic. It uses the Google ADK framework to interpret the natural language query, determine the user's intent, and use predefined **Tools** to query the Spanner database for the requested information.
 *   **React UI**: A simple web interface where the customer service agent can type their questions (e.g., "What's the status of order #12345?").
 
-![arch diagram](images/archdiagram.png)
+![arch diagram](../images/archdiagram.png)
 
 ### Data Flow 🌊
 
@@ -102,4 +104,4 @@ Follow these instructions to get the sample running in your own environment.
     ```
 2.  Open your browser and navigate to `http://localhost:3000` to start chatting!
 
-![ui ss](images/ui-ss.png)
+![ui ss](../images/ui-ss.png)

@@ -1,5 +1,7 @@
 # Data Movement with Spark
 
+[Back to Elasticsearch to Spanner samples](../README.md)
+
 This sample demonstrates the direct Elasticsearch-to-Spanner data movement path for the less common case where Elasticsearch itself is the practical source dataset. The execution target is Managed Service for Apache Spark on Google Cloud. The job reads a flat Elasticsearch index with the Elasticsearch Hadoop Spark connector, transforms source documents into a Spanner table shape, and writes rows with the Spark Spanner connector.
 
 The sample is intentionally small. It proves the mechanics of bulk extraction, schema translation, Spanner writes, and post-load FTS validation before scaling the pattern to customer indices.

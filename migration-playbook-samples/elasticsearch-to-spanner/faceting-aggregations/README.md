@@ -1,5 +1,7 @@
 # Faceting and Aggregations Sample
 
+[Back to Elasticsearch to Spanner samples](../README.md)
+
 This sample compares Elasticsearch search-time aggregations with Spanner SQL aggregations over a Full Text Search result set. It also includes a category and brand rollup query that represents the kind of broader analytical aggregation where Spanner columnar execution can help when columnar is enabled for the database.
 
 ## Elasticsearch

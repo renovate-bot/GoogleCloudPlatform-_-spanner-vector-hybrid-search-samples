@@ -1,5 +1,7 @@
 # Spanner QuickSink
 
+[Back to Spanner Tools](../README.md)
+
 ![App Dashboard Screenshot](./assets/screenshots/quicksink_architecture.png)
 
 Multi-Threaded application to read Google Spanner ChangeStreams and emit them to various sinks (e.g. File, Spanner).

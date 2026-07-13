@@ -1,5 +1,7 @@
 # Samples
 
+[Back to Migration playbook samples](../README.md)
+
 Samples are small, runnable examples for the scenarios in the playbook's
 `Target Schema and Query Design` section. Each topic should use the same file
 layout so the Elastic source behavior and the Spanner target design can be
@@ -74,8 +76,8 @@ The query runner replaces `@tenant_id` with `SAMPLE_TENANT_ID`, defaulting to `t
 
 | Sample | Focus |
 | :---- | :---- |
-| `stemming` | English analyzer behavior compared with Spanner enhanced query mode |
-| `fuzzy-matching` | Elasticsearch edit-distance fuzziness compared with Spanner n-gram search |
-| `faceting-aggregations` | Search result facets, array facets, range buckets, and metrics |
-| `custom-dictionaries` | Elasticsearch custom vocabulary compared with Spanner enhanced query mode |
-| `data-movement` | Spark bulk extraction from Elasticsearch and load into Spanner on Managed Service for Apache Spark |
+| [`stemming`](stemming/README.md) | English analyzer behavior compared with Spanner enhanced query mode |
+| [`fuzzy-matching`](fuzzy-matching/README.md) | Elasticsearch edit-distance fuzziness compared with Spanner n-gram search |
+| [`faceting-aggregations`](faceting-aggregations/README.md) | Search result facets, array facets, range buckets, and metrics |
+| [`custom-dictionaries`](custom-dictionaries/README.md) | Elasticsearch custom vocabulary compared with Spanner enhanced query mode |
+| [`data-movement`](data-movement/README.md) | Spark bulk extraction from Elasticsearch and load into Spanner on Managed Service for Apache Spark |

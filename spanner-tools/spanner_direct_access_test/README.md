@@ -1,5 +1,7 @@
 # Spanner Benchmark POC
 
+[Back to Spanner Tools](../README.md)
+
 This repository contains a small Java 17 / Maven benchmark scaffold for evaluating Google Cloud Spanner read and query performance against the `customer_insights` and `customer_insights_phone` tables in [schema.sql](schema.sql).
 
 Configuration is loaded from `.env`, authentication uses ADC from the VM, and `GOOGLE_SPANNER_ENABLE_DIRECT_ACCESS` is expected to be set explicitly.

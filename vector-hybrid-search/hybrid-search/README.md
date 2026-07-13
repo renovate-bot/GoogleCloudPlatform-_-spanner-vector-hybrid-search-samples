@@ -1,5 +1,7 @@
 # Spanner hybrid search
 
+[Back to Vector & Hybrid Search Samples](../README.md)
+
 Spanner supports both [vector search](https://cloud.google.com/spanner/docs/find-k-nearest-neighbors) and [full-text search](https://cloud.google.com/spanner/docs/full-text-search) (FTS). In some scenarios, it may be beneficial to combine FTS and vector search. In this sample, we'll walk through an approach for performing hybrid searches using Spanner.
 
 ## Getting started

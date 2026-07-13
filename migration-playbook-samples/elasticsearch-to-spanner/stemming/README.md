@@ -1,5 +1,7 @@
 # Stemming Sample
 
+[Back to Elasticsearch to Spanner samples](../README.md)
+
 This sample compares an Elasticsearch index that stems English product text with a Spanner Full Text Search schema that uses `TOKENIZE_FULLTEXT` and `SEARCH(..., enhance_query=>true)`.
 
 ## Elasticsearch

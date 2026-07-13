@@ -1,5 +1,7 @@
 # Spanner Split Points Manager (Java / Spring Boot)
 
+[Back to Spanner Tools](../../README.md)
+
 Java port of the [Python app](../python/). Identical features and HTTP API; uses Spring Boot + Thymeleaf + SQLite-via-JDBC.
 
 ## Features
