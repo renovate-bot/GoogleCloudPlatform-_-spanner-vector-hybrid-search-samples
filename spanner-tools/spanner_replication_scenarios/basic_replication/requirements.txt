@@ -1,0 +1,3 @@
+google-cloud-spanner
+textual
+python-dotenv

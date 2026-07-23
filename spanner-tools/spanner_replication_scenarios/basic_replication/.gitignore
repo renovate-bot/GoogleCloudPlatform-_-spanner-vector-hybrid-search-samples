@@ -1,0 +1,30 @@
+# Environment configurations
+config.env
+
+# Virtual environment
+venv/
+.venv/
+ENV/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+*.tfvars.json
+
+# Local Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Large cloned dependencies (local runner)
+DataflowTemplates/
+
+# Temporary run/state files
+.demo_state.json
+spanner_shard_config.json
+export_folder.txt
+start_timestamp.txt
