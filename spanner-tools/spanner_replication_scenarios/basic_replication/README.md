@@ -6,6 +6,8 @@ It provisions a Spanner schema (tables: `Users`, `Products`, `Orders`, `OrderIte
 
 The demo Python app is a wizard that manages the underlying Terraform and Dataflow jobs while providing real-time status updates!
 
+![Spanner Replication TUI Dashboard](demo_screenshot.png)
+
 ---
 
 ## Quickstart Guide
