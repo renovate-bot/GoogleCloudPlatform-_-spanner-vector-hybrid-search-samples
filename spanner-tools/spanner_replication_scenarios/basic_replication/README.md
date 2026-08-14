@@ -18,7 +18,12 @@ Before running the demo, ensure you have the following installed and authenticat
 - **Terraform**: `~> 5.0`
 - **Python 3.9+**
 
-### 1. Configure the Environment
+### 1. Navigate to the Directory and Configure Environment
+Make sure you are in the `basic_replication` directory:
+```bash
+cd basic_replication
+```
+
 The application uses an environment file (`config.env`) to configure project, regions, and instance names.
 
 1. Copy the template configuration file:
@@ -158,7 +163,7 @@ gcloud dataflow flex-template run "cdc-replication-job" \
   --project="$PROJECT_ID" \
   --region="$REGION" \
   --template-file-gcs-location="gs://dataflow-templates-$REGION/latest/flex/Spanner_to_SourceDb" \
-  --parameters="changeStreamName=streamall,instanceId=$SOURCE_INSTANCE,databaseId=$SOURCE_DB,sourceType=spanner,spannerProjectId=$PROJECT_ID,metadataInstance=$DEST_INSTANCE,metadataDatabase=$DEST_DB,sourceShardsFilePath=$TEMP_BUCKET/config.json,deadLetterQueueDirectory=$TEMP_BUCKET/dlq,startTimestamp=$START_TIMESTAMP" \
+  --parameters="changeStreamName=streamall,instanceId=$SOURCE_INSTANCE,databaseId=$SOURCE_DB,sourceType=spanner,spannerProjectId=$PROJECT_ID,metadataInstance=$SOURCE_INSTANCE,metadataDatabase=$SOURCE_DB,sourceShardsFilePath=$TEMP_BUCKET/config.json,deadLetterQueueDirectory=$TEMP_BUCKET/dlq,startTimestamp=$START_TIMESTAMP" \
   --temp-location="$TEMP_BUCKET/temp" \
   --worker-machine-type="n2-standard-4" \
   --max-workers=5 \

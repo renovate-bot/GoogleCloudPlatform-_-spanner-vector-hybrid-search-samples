@@ -1,30 +1,58 @@
 # Environment configurations
 config.env
+.env
+*.env
+!config.env.example
 
 # Virtual environment
 venv/
 .venv/
 ENV/
+env/
 
 # Terraform
 .terraform/
+.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
-crash.log
 *.tfvars
 *.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+crash.log
 
 # Local Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Large cloned dependencies (local runner)
+# Large cloned dependencies & build artifacts (local runner)
 DataflowTemplates/
+target/
 
 # Temporary run/state files
 .demo_state.json
 spanner_shard_config.json
 export_folder.txt
 start_timestamp.txt
+
+# OS Metadata
+.DS_Store
+._*
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
