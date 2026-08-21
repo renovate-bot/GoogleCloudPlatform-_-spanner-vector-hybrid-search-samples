@@ -1,0 +1,571 @@
+# Copyright 2026 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Standard Cloud Spanner system table introspection queries for Google Standard SQL & PostgreSQL dialects.
+Self-contained definitions for query stats, transaction stats, lock statistics, and split stats.
+"""
+
+from typing import Dict
+
+GSQL_INTROSPECTION_QUERIES: Dict[str, str] = {
+    "export_all_LOCK_STATISTICS_TOP_1MIN": """
+SELECT
+  t.interval_end, 
+  CAST(s.row_range_start_key AS STRING) AS row_range_start_key,
+  t.total_lock_wait_seconds,
+  s.lock_wait_seconds,
+  s.lock_wait_seconds / t.total_lock_wait_seconds AS frac_of_total,
+  s.sample_lock_requests
+FROM
+    spanner_sys.lock_stats_total_Minute t,
+    spanner_sys.lock_stats_top_Minute s
+WHERE
+    s.interval_end = t.interval_end
+    AND t.interval_end >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
+ORDER BY
+  t.interval_end DESC,      
+  s.lock_wait_seconds DESC;
+""",
+
+    "export_all_LOCK_STATISTICS_TOP_10MINUTE": """
+SELECT
+  t.interval_end, 
+  CAST(s.row_range_start_key AS STRING) AS row_range_start_key,
+  t.total_lock_wait_seconds,
+  s.lock_wait_seconds,
+  s.lock_wait_seconds / t.total_lock_wait_seconds AS frac_of_total,
+  s.sample_lock_requests
+FROM
+    spanner_sys.lock_stats_total_10Minute t,
+    spanner_sys.lock_stats_top_10Minute s
+WHERE
+    s.interval_end = t.interval_end
+    AND t.interval_end >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
+ORDER BY
+  t.interval_end DESC,      
+  s.lock_wait_seconds DESC;
+""",
+
+    "export_all_LOCK_STATISTICS_TOP_1HOUR": """
+SELECT
+  t.interval_end, 
+  CAST(s.row_range_start_key AS STRING) AS row_range_start_key,
+  t.total_lock_wait_seconds,
+  s.lock_wait_seconds,
+  s.lock_wait_seconds / t.total_lock_wait_seconds AS frac_of_total,
+  s.sample_lock_requests
+FROM
+    spanner_sys.lock_stats_total_hour t,
+    spanner_sys.lock_stats_top_hour s
+WHERE
+    s.interval_end = t.interval_end
+    AND t.interval_end >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
+ORDER BY
+  t.interval_end DESC,      
+  s.lock_wait_seconds DESC;
+""",
+
+    "export_all_QUERY_STATS_TOP_1MIN": """
+SELECT
+ INTERVAL_END,
+ TEXT,
+ EXECUTION_COUNT,
+ AVG_ROWS_SCANNED,
+ AVG_LATENCY_SECONDS,
+ QUERY_TYPE,
+ round(
+     SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution [OFFSET(0)], 99.0) * 1000
+ ) as latency_p99,
+ round(
+     SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution [OFFSET(0)], 95.0) * 1000
+ ) as latency_p95,
+ round(
+     SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution [OFFSET(0)], 50.0) * 1000
+ ) as latency_p50,
+ TEXT_FINGERPRINT,
+ AVG_CPU_SECONDS,
+ CANCELLED_OR_DISCONNECTED_EXECUTION_COUNT,
+ TIMED_OUT_EXECUTION_COUNT,
+ ALL_FAILED_EXECUTION_COUNT,
+ ALL_FAILED_AVG_LATENCY_SECONDS,
+ REQUEST_TAG,
+ RUN_IN_RW_TRANSACTION_EXECUTION_COUNT,
+ AVG_BYTES_WRITTEN,
+ AVG_ROWS_WRITTEN,
+ STATEMENT_COUNT
+FROM
+ SPANNER_SYS.query_stats_top_minute
+ORDER BY
+ avg_latency_seconds,  RUN_IN_RW_TRANSACTION_EXECUTION_COUNT DESC;
+""",
+
+    "export_all_QUERY_STATS_TOP_10MINUTE": """
+SELECT
+ INTERVAL_END,
+ TEXT,
+ EXECUTION_COUNT,
+ AVG_ROWS_SCANNED,
+ AVG_LATENCY_SECONDS,
+ round(
+     SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution [OFFSET(0)], 99.0) * 1000
+ ) as latency_p99,
+ round(
+     SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution [OFFSET(0)], 95.0) * 1000
+ ) as latency_p95,
+ round(
+     SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution [OFFSET(0)], 50.0) * 1000
+ ) as latency_p50,
+ TEXT_FINGERPRINT,
+ AVG_CPU_SECONDS,
+ CANCELLED_OR_DISCONNECTED_EXECUTION_COUNT,
+ TIMED_OUT_EXECUTION_COUNT,
+ ALL_FAILED_EXECUTION_COUNT,
+ ALL_FAILED_AVG_LATENCY_SECONDS,
+ REQUEST_TAG,
+ RUN_IN_RW_TRANSACTION_EXECUTION_COUNT,
+  QUERY_TYPE,
+ AVG_BYTES_WRITTEN,
+ AVG_ROWS_WRITTEN,
+ STATEMENT_COUNT
+FROM
+ SPANNER_SYS.QUERY_STATS_TOP_10MINUTE
+ORDER BY
+ avg_latency_seconds,  RUN_IN_RW_TRANSACTION_EXECUTION_COUNT DESC;
+""",
+
+    "export_all_QUERY_STATS_TOP_1HOUR": """
+SELECT
+ INTERVAL_END,
+ TEXT,
+ EXECUTION_COUNT,
+ AVG_ROWS_SCANNED,
+ AVG_LATENCY_SECONDS,
+ round(
+     SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution [OFFSET(0)], 99.0) * 1000
+ ) as latency_p99,
+ round(
+     SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution [OFFSET(0)], 95.0) * 1000
+ ) as latency_p95,
+ round(
+     SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution [OFFSET(0)], 50.0) * 1000
+ ) as latency_p50,
+ TEXT_FINGERPRINT,
+ AVG_CPU_SECONDS,
+ CANCELLED_OR_DISCONNECTED_EXECUTION_COUNT,
+ TIMED_OUT_EXECUTION_COUNT,
+ ALL_FAILED_EXECUTION_COUNT,
+ ALL_FAILED_AVG_LATENCY_SECONDS,
+ REQUEST_TAG,
+ RUN_IN_RW_TRANSACTION_EXECUTION_COUNT,
+ QUERY_TYPE,
+ AVG_BYTES_WRITTEN,
+ AVG_ROWS_WRITTEN,
+ STATEMENT_COUNT
+FROM
+ SPANNER_SYS.QUERY_STATS_TOP_HOUR
+ORDER BY
+ avg_latency_seconds,  RUN_IN_RW_TRANSACTION_EXECUTION_COUNT DESC;
+""",
+
+    "export_all_SPLIT_STATS_TOP_MINUTE": """
+SELECT t.split_start,
+       t.split_limit,
+       t.cpu_usage_score,
+       t.affected_tables
+FROM SPANNER_SYS.SPLIT_STATS_TOP_MINUTE t;
+""",
+
+    "export_all_TXN_STATS_TOP_1MIN": """
+SELECT
+INTERVAL_END,
+TRANSACTION_TAG,
+FPRINT,
+READ_COLUMNS,
+WRITE_CONSTRUCTIVE_COLUMNS,
+WRITE_DELETE_TABLES,
+ATTEMPT_COUNT,
+COMMIT_ATTEMPT_COUNT,
+COMMIT_ABORT_COUNT,
+COMMIT_RETRY_COUNT,
+COMMIT_FAILED_PRECONDITION_COUNT,
+AVG_PARTICIPANTS,
+AVG_TOTAL_LATENCY_SECONDS,
+ROUND(SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION[
+OFFSET
+  (0)],
+  99.0) * 1000) AS latency_p99,
+ROUND(SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION[
+OFFSET
+  (0)],
+  95.0) * 1000) AS latency_p95,
+ROUND(SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION[
+OFFSET
+  (0)],
+  50.0) * 1000) AS latency_p50,
+AVG_COMMIT_LATENCY_SECONDS,
+OPERATIONS_BY_TABLE
+FROM
+SPANNER_SYS.TXN_STATS_TOP_MINUTE
+WHERE
+    avg_total_latency_seconds IS NOT NULL
+ORDER BY
+ avg_total_latency_seconds DESC;
+""",
+
+    "export_all_TXN_STATS_TOP_10MINUTE": """
+SELECT
+INTERVAL_END,
+TRANSACTION_TAG,
+FPRINT,
+READ_COLUMNS,
+WRITE_CONSTRUCTIVE_COLUMNS,
+WRITE_DELETE_TABLES,
+ATTEMPT_COUNT,
+COMMIT_ATTEMPT_COUNT,
+COMMIT_ABORT_COUNT,
+COMMIT_RETRY_COUNT,
+COMMIT_FAILED_PRECONDITION_COUNT,
+AVG_PARTICIPANTS,
+AVG_TOTAL_LATENCY_SECONDS,
+ROUND(SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION[
+OFFSET
+  (0)],
+  99.0) * 1000) AS latency_p99,
+ROUND(SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION[
+OFFSET
+  (0)],
+  95.0) * 1000) AS latency_p95,
+ROUND(SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION[
+OFFSET
+  (0)],
+  50.0) * 1000) AS latency_p50,
+AVG_COMMIT_LATENCY_SECONDS,
+OPERATIONS_BY_TABLE
+FROM
+SPANNER_SYS.TXN_STATS_TOP_10MINUTE
+WHERE
+    avg_total_latency_seconds IS NOT NULL
+ORDER BY
+ avg_total_latency_seconds DESC;
+""",
+
+    "export_all_TXN_STATS_TOP_1HOUR": """
+SELECT
+INTERVAL_END,
+TRANSACTION_TAG,
+FPRINT,
+READ_COLUMNS,
+WRITE_CONSTRUCTIVE_COLUMNS,
+WRITE_DELETE_TABLES,
+ATTEMPT_COUNT,
+COMMIT_ATTEMPT_COUNT,
+COMMIT_ABORT_COUNT,
+COMMIT_RETRY_COUNT,
+COMMIT_FAILED_PRECONDITION_COUNT,
+AVG_PARTICIPANTS,
+AVG_TOTAL_LATENCY_SECONDS,
+ROUND(SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION[
+OFFSET
+  (0)],
+  99.0) * 1000) AS latency_p99,
+ROUND(SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION[
+OFFSET
+  (0)],
+  95.0) * 1000) AS latency_p95,
+ROUND(SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION[
+OFFSET
+  (0)],
+  50.0) * 1000) AS latency_p50,
+AVG_COMMIT_LATENCY_SECONDS,
+OPERATIONS_BY_TABLE
+FROM
+SPANNER_SYS.TXN_STATS_TOP_HOUR
+WHERE
+    avg_total_latency_seconds IS NOT NULL
+ORDER BY
+ avg_total_latency_seconds DESC;
+""",
+}
+
+PG_INTROSPECTION_QUERIES: Dict[str, str] = {
+    "export_all_LOCK_STATISTICS_TOP_1MIN": """
+SELECT
+  t.interval_end, 
+  s.row_range_start_key AS row_range_start_key,
+  t.total_lock_wait_seconds,
+  s.lock_wait_seconds,
+  s.lock_wait_seconds / t.total_lock_wait_seconds AS frac_of_total,
+  s.SAMPLE_LOCK_REQUESTS_JSON_STRING
+FROM
+    spanner_sys.lock_stats_total_minute t,
+    spanner_sys.lock_stats_top_minute s
+WHERE
+    s.interval_end = t.interval_end
+    AND t.interval_end >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
+ORDER BY
+  t.interval_end DESC,      
+  s.lock_wait_seconds DESC;
+""",
+
+    "export_all_LOCK_STATISTICS_TOP_10MINUTE": """
+SELECT
+  t.interval_end, 
+  s.row_range_start_key AS row_range_start_key,
+  t.total_lock_wait_seconds,
+  s.lock_wait_seconds,
+  s.lock_wait_seconds / t.total_lock_wait_seconds AS frac_of_total,
+  s.SAMPLE_LOCK_REQUESTS_JSON_STRING
+FROM
+    spanner_sys.lock_stats_total_10Minute t,
+    spanner_sys.lock_stats_top_10Minute s
+WHERE
+    s.interval_end = t.interval_end
+    AND t.interval_end >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
+ORDER BY
+  t.interval_end DESC,      
+  s.lock_wait_seconds DESC;
+""",
+
+    "export_all_LOCK_STATISTICS_TOP_1HOUR": """
+SELECT
+  t.interval_end, 
+  s.row_range_start_key AS row_range_start_key,
+  t.total_lock_wait_seconds,
+  s.lock_wait_seconds,
+  s.lock_wait_seconds / t.total_lock_wait_seconds AS frac_of_total,
+  s.SAMPLE_LOCK_REQUESTS_JSON_STRING
+FROM
+    spanner_sys.lock_stats_total_hour t,
+    spanner_sys.lock_stats_top_hour s
+WHERE
+    s.interval_end = t.interval_end
+    AND t.interval_end >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
+ORDER BY
+  t.interval_end DESC,      
+  s.lock_wait_seconds DESC;
+""",
+
+    "export_all_QUERY_STATS_TOP_1MIN": """
+SELECT
+ INTERVAL_END,
+ TEXT,
+ EXECUTION_COUNT,
+ AVG_ROWS_SCANNED,
+ AVG_LATENCY_SECONDS,
+ QUERY_TYPE,
+ ROUND(
+    SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution_json_string, 99.0) * 1000
+  ) AS latency_p99,
+  ROUND(
+    SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution_json_string, 95.0) * 1000
+  ) AS latency_p95,
+  ROUND(
+    SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution_json_string, 50.0) * 1000
+  ) AS latency_p50,
+ TEXT_FINGERPRINT,
+ AVG_CPU_SECONDS,
+ CANCELLED_OR_DISCONNECTED_EXECUTION_COUNT,
+ TIMED_OUT_EXECUTION_COUNT,
+ ALL_FAILED_EXECUTION_COUNT,
+ ALL_FAILED_AVG_LATENCY_SECONDS,
+ REQUEST_TAG,
+ RUN_IN_RW_TRANSACTION_EXECUTION_COUNT,
+ AVG_BYTES_WRITTEN,
+ AVG_ROWS_WRITTEN,
+ STATEMENT_COUNT
+FROM
+ SPANNER_SYS.query_stats_top_minute
+ORDER BY
+ avg_latency_seconds,  RUN_IN_RW_TRANSACTION_EXECUTION_COUNT DESC;
+""",
+
+    "export_all_QUERY_STATS_TOP_10MINUTE": """
+SELECT
+ INTERVAL_END,
+ TEXT,
+ EXECUTION_COUNT,
+ AVG_ROWS_SCANNED,
+ AVG_LATENCY_SECONDS,
+ ROUND(
+    SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution_json_string, 99.0) * 1000
+  ) AS latency_p99,
+  ROUND(
+    SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution_json_string, 95.0) * 1000
+  ) AS latency_p95,
+  ROUND(
+    SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution_json_string, 50.0) * 1000
+  ) AS latency_p50,
+ TEXT_FINGERPRINT,
+ AVG_CPU_SECONDS,
+ CANCELLED_OR_DISCONNECTED_EXECUTION_COUNT,
+ TIMED_OUT_EXECUTION_COUNT,
+ ALL_FAILED_EXECUTION_COUNT,
+ ALL_FAILED_AVG_LATENCY_SECONDS,
+ REQUEST_TAG,
+ RUN_IN_RW_TRANSACTION_EXECUTION_COUNT,
+  QUERY_TYPE,
+ AVG_BYTES_WRITTEN,
+ AVG_ROWS_WRITTEN,
+ STATEMENT_COUNT
+FROM
+ SPANNER_SYS.QUERY_STATS_TOP_10MINUTE
+ORDER BY
+ avg_latency_seconds,  RUN_IN_RW_TRANSACTION_EXECUTION_COUNT DESC;
+""",
+
+    "export_all_QUERY_STATS_TOP_1HOUR": """
+SELECT
+ INTERVAL_END,
+ TEXT,
+ EXECUTION_COUNT,
+ AVG_ROWS_SCANNED,
+ AVG_LATENCY_SECONDS,
+ ROUND(
+    SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution_json_string, 99.0) * 1000
+  ) AS latency_p99,
+  ROUND(
+    SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution_json_string, 95.0) * 1000
+  ) AS latency_p95,
+  ROUND(
+    SPANNER_SYS.DISTRIBUTION_PERCENTILE(latency_distribution_json_string, 50.0) * 1000
+  ) AS latency_p50,
+ TEXT_FINGERPRINT,
+ AVG_CPU_SECONDS,
+ CANCELLED_OR_DISCONNECTED_EXECUTION_COUNT,
+ TIMED_OUT_EXECUTION_COUNT,
+ ALL_FAILED_EXECUTION_COUNT,
+ ALL_FAILED_AVG_LATENCY_SECONDS,
+ REQUEST_TAG,
+ RUN_IN_RW_TRANSACTION_EXECUTION_COUNT,
+ QUERY_TYPE,
+ AVG_BYTES_WRITTEN,
+ AVG_ROWS_WRITTEN,
+ STATEMENT_COUNT
+FROM
+ SPANNER_SYS.QUERY_STATS_TOP_HOUR
+ORDER BY
+ avg_latency_seconds,  RUN_IN_RW_TRANSACTION_EXECUTION_COUNT DESC;
+""",
+
+    "export_all_SPLIT_STATS_TOP_MINUTE": """
+SELECT t.split_start,
+       t.split_limit,
+       t.cpu_usage_score,
+       t.affected_tables
+FROM SPANNER_SYS.SPLIT_STATS_TOP_MINUTE t;
+""",
+
+    "export_all_TXN_STATS_TOP_1MIN": """
+SELECT
+INTERVAL_END,
+TRANSACTION_TAG,
+FPRINT,
+READ_COLUMNS,
+WRITE_CONSTRUCTIVE_COLUMNS,
+WRITE_DELETE_TABLES,
+ATTEMPT_COUNT,
+COMMIT_ATTEMPT_COUNT,
+COMMIT_ABORT_COUNT,
+COMMIT_RETRY_COUNT,
+COMMIT_FAILED_PRECONDITION_COUNT,
+AVG_PARTICIPANTS,
+AVG_TOTAL_LATENCY_SECONDS,
+ROUND(
+  SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION_JSON_STRING, 99.0) * 1000
+) AS latency_p99,
+ROUND(
+  SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION_JSON_STRING, 95.0) * 1000
+) AS latency_p95,
+ROUND(
+  SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION_JSON_STRING, 50.0) * 1000
+) AS latency_p50,
+AVG_COMMIT_LATENCY_SECONDS,
+OPERATIONS_BY_TABLE_JSON_STRING
+FROM
+SPANNER_SYS.TXN_STATS_TOP_MINUTE
+WHERE
+    avg_total_latency_seconds IS NOT NULL
+ORDER BY
+ avg_total_latency_seconds DESC;
+""",
+
+    "export_all_TXN_STATS_TOP_10MINUTE": """
+SELECT
+INTERVAL_END,
+TRANSACTION_TAG,
+FPRINT,
+READ_COLUMNS,
+WRITE_CONSTRUCTIVE_COLUMNS,
+WRITE_DELETE_TABLES,
+ATTEMPT_COUNT,
+COMMIT_ATTEMPT_COUNT,
+COMMIT_ABORT_COUNT,
+COMMIT_RETRY_COUNT,
+COMMIT_FAILED_PRECONDITION_COUNT,
+AVG_PARTICIPANTS,
+AVG_TOTAL_LATENCY_SECONDS,
+ROUND(
+  SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION_JSON_STRING, 99.0) * 1000
+) AS latency_p99,
+ROUND(
+  SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION_JSON_STRING, 95.0) * 1000
+) AS latency_p95,
+ROUND(
+  SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION_JSON_STRING, 50.0) * 1000
+) AS latency_p50,
+AVG_COMMIT_LATENCY_SECONDS,
+OPERATIONS_BY_TABLE_JSON_STRING
+FROM
+SPANNER_SYS.TXN_STATS_TOP_10MINUTE
+WHERE
+    avg_total_latency_seconds IS NOT NULL
+ORDER BY
+ avg_total_latency_seconds DESC;
+""",
+
+    "export_all_TXN_STATS_TOP_1HOUR": """
+SELECT
+INTERVAL_END,
+TRANSACTION_TAG,
+FPRINT,
+READ_COLUMNS,
+WRITE_CONSTRUCTIVE_COLUMNS,
+WRITE_DELETE_TABLES,
+ATTEMPT_COUNT,
+COMMIT_ATTEMPT_COUNT,
+COMMIT_ABORT_COUNT,
+COMMIT_RETRY_COUNT,
+COMMIT_FAILED_PRECONDITION_COUNT,
+AVG_PARTICIPANTS,
+AVG_TOTAL_LATENCY_SECONDS,
+ROUND(
+  SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION_JSON_STRING, 99.0) * 1000
+) AS latency_p99,
+ROUND(
+  SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION_JSON_STRING, 95.0) * 1000
+) AS latency_p95,
+ROUND(
+  SPANNER_SYS.DISTRIBUTION_PERCENTILE(TOTAL_LATENCY_DISTRIBUTION_JSON_STRING, 50.0) * 1000
+) AS latency_p50,
+AVG_COMMIT_LATENCY_SECONDS,
+OPERATIONS_BY_TABLE_JSON_STRING
+FROM
+SPANNER_SYS.TXN_STATS_TOP_HOUR
+WHERE
+    avg_total_latency_seconds IS NOT NULL
+ORDER BY
+ avg_total_latency_seconds DESC;
+""",
+}

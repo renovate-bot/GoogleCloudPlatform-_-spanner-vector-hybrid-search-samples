@@ -1,0 +1,54 @@
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Secrets & Environment
+.env
+.env.*
+!.env.template
+*.key
+*.pem
+
+# Local Databases & Cache
+*.db
+*.db.wal
+*.duckdb
+*.duckdb.wal
+my_duckdb.db
+test_duckdb.db
+test_api_duckdb.db
+backend/data/cache/*
+!backend/data/cache/.gitkeep
+backend/data/dbs/*
+!backend/data/dbs/.gitkeep
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Frontend / Node
+frontend/node_modules/
+frontend/dist/
+node_modules/
+dist/
+.npm
+
+# Backend Dynamic Data
+backend/data/*.json
+!backend/data/.gitkeep
+
+# Data Pipeline Staging Exports & Logs
+staging/*
+!staging/.gitkeep
+*.log
+
+# Internal Tooling Config & Secrets
+internal/config.cfg
+!internal/config.cfg.template
