@@ -1,7 +1,5 @@
 # Cloud Spanner CDC Load Test
 
-[Back to Spanner Tools](../README.md)
-
 A Java-based load generator for Cloud Spanner, designed to test Change Data Capture (CDC) and general database performance. It supports various strategies to simulate different types of load.
 
 ## Strategies
@@ -29,20 +27,49 @@ A Java-based load generator for Cloud Spanner, designed to test Change Data Capt
 mvn clean package -DskipTests
 ```
 
+### Command-Line Options
+
+| Option | Long Option | Required | Default | Description |
+| :--- | :--- | :---: | :--- | :--- |
+| `-p` | `--project` | **Yes** | — | Google Cloud Project ID |
+| `-i` | `--instance` | **Yes** | — | Cloud Spanner Instance ID |
+| `-d` | `--database` | **Yes** | — | Cloud Spanner Database ID |
+| `-c` | `--concurrency` | No | `10` | Number of concurrent worker threads |
+| `-s` | `--strategy` | No | `RANDOM` | Load strategy (`RANDOM`, `SEQUENTIAL`, `HOTSPOT`, `ATOMICITY`, `SATURATION`, `INTEGRITY`, `READ_HEAVY`, `MIXED`). See [Strategies](#strategies). |
+| | `--duration` | No | `60` | Duration of test in seconds |
+| | `--create-schema` | No | `false` | Automatically creates target table (`LoadTestTable`) if it does not exist |
+| `-h` | `--help` | No | — | Show help message and exit |
+| `-V` | `--version` | No | — | Print version information and exit |
+
 ### Run Locally
+
+Set your environment variables:
+```bash
+export PROJECT_ID="your-project-id"
+export SPANNER_INSTANCE="your-instance-id"
+export SPANNER_DATABASE="your-database-id"
+```
+
+**Run with custom parameters:**
 ```bash
 java -jar target/spanner-cdc-loadtest-1.0-SNAPSHOT.jar \
-  -p <PROJECT_ID> \
-  -i <INSTANCE_ID> \
-  -d <DATABASE_ID> \
-  -c 10 \
-  -s MIXED \
+  -p "${PROJECT_ID}" \
+  -i "${SPANNER_INSTANCE}" \
+  -d "${SPANNER_DATABASE}" \
   -c 10 \
   -s MIXED \
   --duration 60 \
   --create-schema
 ```
-*Note: Schema creation is disabled by default. Use `--create-schema` to enable it.*
+
+**Run with defaults (10 threads, RANDOM strategy, 60s duration):**
+```bash
+java -jar target/spanner-cdc-loadtest-1.0-SNAPSHOT.jar \
+  -p "${PROJECT_ID}" \
+  -i "${SPANNER_INSTANCE}" \
+  -d "${SPANNER_DATABASE}"
+```
+*Note: Schema creation is disabled by default. Pass `--create-schema` on initial run to automatically create the table schema.*
 
 ---
 
@@ -86,7 +113,6 @@ gcloud run jobs create spanner-loadtest \
   --region ${REGION} \
   --cpu=4 \
   --memory=8Gi \
-  --memory=8Gi \
   --task-timeout=1h \
   --args="-p,${PROJECT_ID},-i,${SPANNER_INSTANCE},-d,${SPANNER_DATABASE},-c,5,-s,MIXED,--duration,60"
 ```
@@ -113,7 +139,6 @@ gcloud run jobs update spanner-loadtest \
   --cpu=8 \
   --memory=16Gi \
   --region=${REGION}
-  --region=${REGION}
 ```
 **Important:** These resources (8 CPU, 16Gi Memory) are allocated **PER TASK**.
 If you execute this job with `--tasks 10`, you will provision **10 separate containers**, each with 8 vCPUs (Total: 80 vCPUs).
@@ -124,27 +149,28 @@ Rates are billed per vCPU-second and GB-second for each task.
 - **Error: `denied: gcr.io repo does not exist`**: Use Artifact Registry (`pkg.dev`) as shown above.
 
 
-# End-to-End
+---
 
-## Variables
-```
+## End-to-End Quickstart
+
+### Variables
+```bash
 export PROJECT_ID="your-project-id"
 export REGION="us-central1"
-export IMAGE_NAME="gcr.io/${PROJECT_ID}/spanner-loadtest:latest"
+export REPO_NAME="spanner-loadtest-repo"
+export IMAGE_NAME="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/spanner-loadtest:latest"
 
 export SPANNER_INSTANCE="your-instance-id"
 export SPANNER_DATABASE="your-database-id"
 ```
 
-## Initial setup
+### Initial setup
 
-```
-gcloud artifacts repositories create spanner-loadtest-repo \
+```bash
+gcloud artifacts repositories create ${REPO_NAME} \
     --repository-format=docker \
     --location=${REGION} \
     --description="Docker repository for Spanner Load Test"
-
-export IMAGE_NAME="${REGION}-docker.pkg.dev/${PROJECT_ID}/spanner-loadtest-repo/spanner-loadtest:latest"
 
 gcloud builds submit --tag ${IMAGE_NAME}
 
@@ -159,8 +185,8 @@ gcloud run jobs create spanner-loadtest \
 gcloud run jobs execute spanner-loadtest --region ${REGION} --tasks 50
 ```
 
-## Rebuild after changes
-```
+### Rebuild after changes
+```bash
 gcloud builds submit --tag ${IMAGE_NAME}
 gcloud run jobs execute spanner-loadtest --region ${REGION} --tasks 2
 ```
