@@ -15,7 +15,7 @@
 import os
 import duckdb
 import pytest
-from backend.app.services.duckdb_service import DuckDBService, categorize_table, infer_filter_type
+from backend.app.services.duckdb_service import DuckDBService, categorize_table, infer_filter_type, _parse_numeric_bound
 from backend.app.models.query import ColumnFilter, SortConfig
 
 TEST_DB_FILE = "test_duckdb.db"
@@ -147,4 +147,112 @@ def test_interval_histogram(test_duckdb):
     assert timeline[0]["utc"] == "2026-08-19 08:00:00"
     assert timeline[0]["display"] == "2026-08-19 09:00:00"
     assert timeline[0]["count"] == 1
+
+def test_parse_numeric_bound():
+    assert _parse_numeric_bound(100) == 100
+    assert _parse_numeric_bound(12.34) == 12.34
+    assert _parse_numeric_bound("-1,737,658,763,448,670,700") == -1737658763448670700
+    assert _parse_numeric_bound("1,000,000") == 1000000
+    assert _parse_numeric_bound("1,234.56") == 1234.56
+    assert isinstance(_parse_numeric_bound("-1,737,658,763,448,670,700"), int)
+
+def test_bigint_fingerprint_filtering(tmp_path):
+    db_file = str(tmp_path / "test_fingerprint.db")
+    con = duckdb.connect(db_file)
+    con.execute("""
+        CREATE TABLE QUERY_STATS (
+            text VARCHAR,
+            text_fingerprint BIGINT,
+            execution_count BIGINT
+        );
+    """)
+    target_fp = -1737658763448670700
+    other_fp = -5555555555555555555
+    con.execute("INSERT INTO QUERY_STATS VALUES ('SELECT 1', ?, 10);", [target_fp])
+    con.execute("INSERT INTO QUERY_STATS VALUES ('SELECT 2', ?, 20);", [other_fp])
+    con.close()
+
+    svc = DuckDBService(db_file)
+
+    # 1. Test numeric min filter with commas (the user's scenario)
+    num_filter_min = {"text_fingerprint": ColumnFilter(type="numeric", min="-1,737,658,763,448,670,700")}
+    res = svc.query_table("QUERY_STATS", filters=num_filter_min)
+    assert res["total"] >= 1
+    assert any(item["text_fingerprint"] == str(target_fp) for item in res["items"])
+
+    # 2. Test numeric min/max exact range with commas
+    num_filter_range = {
+        "text_fingerprint": ColumnFilter(
+            type="numeric",
+            min="-1,737,658,763,448,670,700",
+            max="-1,737,658,763,448,670,700"
+        )
+    }
+    res_range = svc.query_table("QUERY_STATS", filters=num_filter_range)
+    assert res_range["total"] == 1
+    assert res_range["items"][0]["text_fingerprint"] == str(target_fp)
+
+    # 3. Test global search with commas
+    res_search = svc.query_table("QUERY_STATS", global_search="-1,737,658,763,448,670,700")
+    assert res_search["total"] == 1
+    assert res_search["items"][0]["text_fingerprint"] == str(target_fp)
+
+    # 4. Test text exact match with commas
+    text_filter = {"text_fingerprint": ColumnFilter(type="text", operator="exact", value="-1,737,658,763,448,670,700")}
+    res_text = svc.query_table("QUERY_STATS", filters=text_filter)
+    assert res_text["total"] == 1
+    assert res_text["items"][0]["text_fingerprint"] == str(target_fp)
+
+    # 5. Verify 64-bit integer is serialized as exact string (preventing JS JSON.parse rounding)
+    all_res = svc.query_table("QUERY_STATS")
+    for item in all_res["items"]:
+        assert isinstance(item["text_fingerprint"], str)
+
+
+def test_null_and_other_filtering(tmp_path):
+    db_file = str(tmp_path / "test_filter_null_other.db")
+    con = duckdb.connect(db_file)
+    con.execute("""
+        CREATE TABLE SAMPLE_DATA (
+            id INT,
+            tag VARCHAR
+        );
+    """)
+    con.execute("""
+        INSERT INTO SAMPLE_DATA VALUES
+        (1, 'cat_A'),
+        (2, 'cat_B'),
+        (3, 'cat_C'),
+        (4, 'cat_Other1'),
+        (5, 'cat_Other2'),
+        (6, NULL),
+        (7, NULL);
+    """)
+    con.close()
+
+    svc = DuckDBService(db_file)
+
+    # 1. Test is_null operator
+    res_null = svc.query_table("SAMPLE_DATA", filters={"tag": ColumnFilter(type="text", operator="is_null")})
+    assert res_null["total"] == 2
+    assert all(item["tag"] is None for item in res_null["items"])
+    assert {item["id"] for item in res_null["items"]} == {6, 7}
+
+    # 2. Test is_not_null operator
+    res_not_null = svc.query_table("SAMPLE_DATA", filters={"tag": ColumnFilter(type="text", operator="is_not_null")})
+    assert res_not_null["total"] == 5
+    assert all(item["tag"] is not None for item in res_not_null["items"])
+
+    # 3. Test not_in operator (filtering for 'Other')
+    top_categories = ["cat_A", "cat_B", "cat_C"]
+    res_other = svc.query_table("SAMPLE_DATA", filters={"tag": ColumnFilter(type="text", operator="not_in", values=top_categories)})
+    assert res_other["total"] == 2
+    assert {item["tag"] for item in res_other["items"]} == {"cat_Other1", "cat_Other2"}
+    assert {item["id"] for item in res_other["items"]} == {4, 5}
+
+    # 4. Test not_in with empty values (behaves as IS NOT NULL)
+    res_empty_not_in = svc.query_table("SAMPLE_DATA", filters={"tag": ColumnFilter(type="text", operator="not_in", values=[])})
+    assert res_empty_not_in["total"] == 5
+
+
 

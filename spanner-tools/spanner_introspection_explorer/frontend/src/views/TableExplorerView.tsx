@@ -151,6 +151,27 @@ export const TableExplorerView: React.FC<TableExplorerViewProps> = ({
     setPage(1);
   };
 
+  const handleApplyNullFilter = (colName: string) => {
+    const newFilters = { ...filters };
+    newFilters[colName] = {
+      type: 'text',
+      operator: 'is_null',
+    };
+    setFilters(newFilters);
+    setPage(1);
+  };
+
+  const handleApplyOtherFilter = (colName: string, topValues: string[]) => {
+    const newFilters = { ...filters };
+    newFilters[colName] = {
+      type: 'text',
+      operator: 'not_in',
+      values: topValues,
+    };
+    setFilters(newFilters);
+    setPage(1);
+  };
+
   const handleClearRange = (xCol?: string, yCol?: string) => {
     const newFilters = { ...filters };
     if (xCol) delete newFilters[xCol];
@@ -405,6 +426,8 @@ export const TableExplorerView: React.FC<TableExplorerViewProps> = ({
             onExportCsv={handleExportCsv}
             onApplyRangeFilter={handleApplyRangeFilter}
             onApplyCategoryFilter={handleApplyCategoryFilter}
+            onApplyNullFilter={handleApplyNullFilter}
+            onApplyOtherFilter={handleApplyOtherFilter}
             exporting={exporting}
           />
         </Box>

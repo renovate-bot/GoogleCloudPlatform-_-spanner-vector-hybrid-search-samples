@@ -69,8 +69,11 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   const [popoverAnchor, setPopoverAnchor] = useState<null | HTMLElement>(null);
 
   // Filter input states for active column popover
-  const [tempOperator, setTempOperator] = useState<'contains' | 'exact' | 'not_contains' | 'not_exact'>('contains');
+  const [tempOperator, setTempOperator] = useState<
+    'contains' | 'exact' | 'not_contains' | 'not_exact' | 'is_null' | 'is_not_null' | 'not_in'
+  >('contains');
   const [tempTextValue, setTempTextValue] = useState('');
+  const [tempValues, setTempValues] = useState<string[]>([]);
   const [tempMin, setTempMin] = useState<string>('');
   const [tempMax, setTempMax] = useState<string>('');
 
@@ -88,11 +91,13 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     if (existing) {
       setTempOperator(existing.operator || 'contains');
       setTempTextValue(existing.value || '');
+      setTempValues(existing.values || []);
       setTempMin(existing.min !== undefined && existing.min !== null ? String(existing.min) : '');
       setTempMax(existing.max !== undefined && existing.max !== null ? String(existing.max) : '');
     } else {
       setTempOperator('contains');
       setTempTextValue('');
+      setTempValues([]);
       setTempMin('');
       setTempMax('');
     }
@@ -108,6 +113,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     if (existing) {
       setTempOperator(existing.operator || 'contains');
       setTempTextValue(existing.value || '');
+      setTempValues(existing.values || []);
       setTempMin(existing.min !== undefined && existing.min !== null ? String(existing.min) : '');
       setTempMax(existing.max !== undefined && existing.max !== null ? String(existing.max) : '');
     }
@@ -118,7 +124,18 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
     const newFilters = { ...filters };
     if (activeFilterCol.filter_type === 'text') {
-      if (tempTextValue.trim()) {
+      if (tempOperator === 'is_null' || tempOperator === 'is_not_null') {
+        newFilters[activeFilterCol.name] = {
+          type: 'text',
+          operator: tempOperator,
+        };
+      } else if (tempOperator === 'not_in') {
+        newFilters[activeFilterCol.name] = {
+          type: 'text',
+          operator: 'not_in',
+          values: tempValues,
+        };
+      } else if (tempTextValue.trim()) {
         newFilters[activeFilterCol.name] = {
           type: 'text',
           operator: tempOperator,
@@ -128,11 +145,19 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         delete newFilters[activeFilterCol.name];
       }
     } else if (activeFilterCol.filter_type === 'numeric') {
-      if (tempMin !== '' || tempMax !== '') {
+      const cleanMin = tempMin ? tempMin.replace(/,/g, '').trim() : '';
+      const cleanMax = tempMax ? tempMax.replace(/,/g, '').trim() : '';
+      if (cleanMin !== '' || cleanMax !== '') {
+        const parseBound = (v: string) => {
+          if (!v) return undefined;
+          if (v.includes('.')) return parseFloat(v);
+          // If it's a 64-bit integer (> 15 digits), keep as string to prevent JS float precision loss
+          return v.length > 15 ? v : Number(v);
+        };
         newFilters[activeFilterCol.name] = {
           type: 'numeric',
-          min: tempMin !== '' ? parseFloat(tempMin) : undefined,
-          max: tempMax !== '' ? parseFloat(tempMax) : undefined,
+          min: parseBound(cleanMin),
+          max: parseBound(cleanMax),
         };
       } else {
         delete newFilters[activeFilterCol.name];
@@ -264,7 +289,18 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
             let label = `${colName}: `;
             let tooltipContent = '';
-            if (filter.type === 'text') {
+            if (filter.operator === 'is_null') {
+              label += 'IS NULL';
+              tooltipContent = `${colName} IS NULL`;
+            } else if (filter.operator === 'is_not_null') {
+              label += 'IS NOT NULL';
+              tooltipContent = `${colName} IS NOT NULL`;
+            } else if (filter.operator === 'not_in') {
+              const valsList = filter.values || [];
+              const preview = valsList.slice(0, 3).join(', ') + (valsList.length > 3 ? '...' : '');
+              label += `Other (not in ${preview || 'top categories'})`;
+              tooltipContent = `${colName} NOT IN (${valsList.join(', ')})`;
+            } else if (filter.type === 'text') {
               let op = 'contains';
               if (filter.operator === 'exact') op = '=';
               else if (filter.operator === 'not_exact') op = '!=';
@@ -355,35 +391,69 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   labelId="text-match-type-label"
                   label="Match Type"
                   value={tempOperator}
-                  onChange={(e) => setTempOperator(e.target.value as 'contains' | 'exact' | 'not_contains' | 'not_exact')}
+                  onChange={(e) =>
+                    setTempOperator(
+                      e.target.value as
+                        | 'contains'
+                        | 'exact'
+                        | 'not_contains'
+                        | 'not_exact'
+                        | 'is_null'
+                        | 'is_not_null'
+                        | 'not_in'
+                    )
+                  }
                 >
                   <MenuItem value="contains">Contains (default, substring)</MenuItem>
                   <MenuItem value="exact">Exact Match (=)</MenuItem>
                   <MenuItem value="not_contains">Does not contain</MenuItem>
                   <MenuItem value="not_exact">Does not match (!=)</MenuItem>
+                  <MenuItem value="is_null">Is NULL</MenuItem>
+                  <MenuItem value="is_not_null">Is NOT NULL</MenuItem>
+                  {tempOperator === 'not_in' && (
+                    <MenuItem value="not_in">Other (Exclude Top Categories)</MenuItem>
+                  )}
                 </Select>
               </FormControl>
 
-              <TextField
-                fullWidth
-                size="small"
-                label={
-                  tempOperator === 'exact' ? 'Exact value' :
-                  tempOperator === 'not_exact' ? 'Value to exclude' :
-                  tempOperator === 'not_contains' ? 'Substring to exclude' :
-                  'Contains value'
-                }
-                placeholder={
-                  tempOperator === 'exact' ? 'Exact match string' :
-                  tempOperator === 'not_exact' ? 'String not matching' :
-                  tempOperator === 'not_contains' ? 'Substring not matching' :
-                  'Substring to search'
-                }
-                value={tempTextValue}
-                onChange={(e) => setTempTextValue(e.target.value)}
-                autoFocus
-                onKeyDown={(e) => e.key === 'Enter' && handleApplyFilter()}
-              />
+              {tempOperator !== 'is_null' && tempOperator !== 'is_not_null' && tempOperator !== 'not_in' ? (
+                <TextField
+                  fullWidth
+                  size="small"
+                  label={
+                    tempOperator === 'exact'
+                      ? 'Exact value'
+                      : tempOperator === 'not_exact'
+                      ? 'Value to exclude'
+                      : tempOperator === 'not_contains'
+                      ? 'Substring to exclude'
+                      : 'Contains value'
+                  }
+                  placeholder={
+                    tempOperator === 'exact'
+                      ? 'Exact match string'
+                      : tempOperator === 'not_exact'
+                      ? 'String not matching'
+                      : tempOperator === 'not_contains'
+                      ? 'Substring not matching'
+                      : 'Substring to search'
+                  }
+                  value={tempTextValue}
+                  onChange={(e) => setTempTextValue(e.target.value)}
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && handleApplyFilter()}
+                />
+              ) : tempOperator === 'not_in' ? (
+                <Typography variant="body2" sx={{ color: gcpPalette.neutral.textSecondary, py: 1, fontSize: '0.82rem' }}>
+                  Filters rows belonging to &apos;Other&apos; (excludes:{' '}
+                  {(tempValues || []).slice(0, 4).join(', ') || 'top categories'}
+                  {(tempValues || []).length > 4 ? '...' : ''}).
+                </Typography>
+              ) : (
+                <Typography variant="body2" sx={{ color: gcpPalette.neutral.textSecondary, py: 1, fontSize: '0.82rem' }}>
+                  Matches rows where {activeFilterCol?.name} is {tempOperator === 'is_null' ? 'NULL' : 'NOT NULL'}. No value needed.
+                </Typography>
+              )}
             </Box>
           )}
 
@@ -392,17 +462,21 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               <TextField
                 size="small"
                 label="Min"
-                type="number"
+                placeholder="e.g. 0 or -1737..."
+                inputProps={{ inputMode: 'decimal' }}
                 value={tempMin}
-                onChange={(e) => setTempMin(e.target.value)}
+                onChange={(e) => setTempMin(e.target.value.replace(/,/g, ''))}
                 autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleApplyFilter()}
               />
               <TextField
                 size="small"
                 label="Max"
-                type="number"
+                placeholder="e.g. 1000"
+                inputProps={{ inputMode: 'decimal' }}
                 value={tempMax}
-                onChange={(e) => setTempMax(e.target.value)}
+                onChange={(e) => setTempMax(e.target.value.replace(/,/g, ''))}
+                onKeyDown={(e) => e.key === 'Enter' && handleApplyFilter()}
               />
             </Box>
           )}

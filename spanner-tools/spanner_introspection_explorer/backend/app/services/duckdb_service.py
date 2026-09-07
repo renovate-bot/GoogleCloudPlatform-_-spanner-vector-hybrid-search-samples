@@ -72,13 +72,25 @@ def categorize_table(table_name: str) -> TableCategory:
         return 'Transactions'
     return 'Misc'
 
-def infer_filter_type(dtype_str: str) -> str:
+def infer_filter_type(dtype_str: str, col_name: str = "") -> str:
     d = str(dtype_str).lower()
     if any(k in d for k in ['int', 'float', 'double', 'decimal', 'numeric', 'hugeint', 'bigint', 'real']):
         return 'numeric'
     elif any(k in d for k in ['date', 'timestamp', 'time']):
         return 'date'
     return 'text'
+
+def _parse_numeric_bound(val: Any) -> int | float:
+    """Safely parses a numeric filter bound, stripping commas and preserving exact integer precision."""
+    if isinstance(val, (int, float)):
+        return val
+    cleaned = str(val).replace(',', '').strip()
+    try:
+        # Preserve full integer precision (crucial for BIGINT / 64-bit fingerprints)
+        return int(cleaned)
+    except ValueError:
+        return float(cleaned)
+
 
 DATABASE_BASE_DIR = "backend/data/dbs"
 
@@ -416,8 +428,10 @@ class DuckDBService:
                         """
                         top_df = conn.execute(top_sql).fetchdf()
                         top_cats = []
+                        top_cnt_sum = 0
                         for _, top_row in top_df.iterrows():
                             cnt = int(top_row['cnt'])
+                            top_cnt_sum += cnt
                             pct = round((cnt / total_rows) * 100, 1) if total_rows > 0 else 0
                             raw_val = str(top_row['val'])
                             disp_val = (raw_val[:32] + '...') if len(raw_val) > 35 else raw_val
@@ -428,6 +442,19 @@ class DuckDBService:
                                 "percent": pct
                             })
                         profile["top_categories"] = top_cats
+
+                        null_cnt = profile["null_count"]
+                        other_cnt = max(0, total_rows - null_cnt - top_cnt_sum)
+                        if other_cnt > 0:
+                            other_pct = round((other_cnt / total_rows) * 100, 1) if total_rows > 0 else 0
+                            other_distinct = max(0, profile["distinct_count"] - len(top_cats))
+                            profile["other"] = {
+                                "count": other_cnt,
+                                "percent": other_pct,
+                                "distinct_count": other_distinct
+                            }
+                        else:
+                            profile["other"] = None
 
                     elif filter_type == 'date':
                         stats_sql = f"""
@@ -466,29 +493,69 @@ class DuckDBService:
     ) -> Tuple[str, List[Any]]:
         where_clauses = []
         params = []
-
         for col, f in filters.items():
+            if f.operator == 'is_null':
+                where_clauses.append(f'"{col}" IS NULL')
+                continue
+            if f.operator == 'is_not_null':
+                where_clauses.append(f'"{col}" IS NOT NULL')
+                continue
+            if f.operator == 'not_in':
+                if f.values:
+                    placeholders = ', '.join(['?' for _ in f.values])
+                    where_clauses.append(f'("{col}" IS NOT NULL AND CAST("{col}" AS VARCHAR) NOT IN ({placeholders}))')
+                    params.extend([str(v) for v in f.values])
+                else:
+                    where_clauses.append(f'"{col}" IS NOT NULL')
+                continue
+
             if f.type == 'text' and f.value:
+                val = f.value.strip()
+                val_no_commas = val.replace(',', '').strip() if (',' in val and any(c.isdigit() for c in val)) else val
+
                 if f.operator == 'exact':
-                    where_clauses.append(f'CAST("{col}" AS VARCHAR) = ?')
-                    params.append(f.value)
+                    if val != val_no_commas:
+                        where_clauses.append(f'(CAST("{col}" AS VARCHAR) = ? OR CAST("{col}" AS VARCHAR) = ?)')
+                        params.append(val)
+                        params.append(val_no_commas)
+                    else:
+                        where_clauses.append(f'CAST("{col}" AS VARCHAR) = ?')
+                        params.append(val)
                 elif f.operator == 'not_exact':
-                    where_clauses.append(f'(CAST("{col}" AS VARCHAR) != ? OR "{col}" IS NULL)')
-                    params.append(f.value)
+                    if val != val_no_commas:
+                        where_clauses.append(f'((CAST("{col}" AS VARCHAR) != ? AND CAST("{col}" AS VARCHAR) != ?) OR "{col}" IS NULL)')
+                        params.append(val)
+                        params.append(val_no_commas)
+                    else:
+                        where_clauses.append(f'(CAST("{col}" AS VARCHAR) != ? OR "{col}" IS NULL)')
+                        params.append(val)
                 elif f.operator == 'not_contains':
                     where_clauses.append(f'(CAST("{col}" AS VARCHAR) NOT ILIKE ? OR "{col}" IS NULL)')
-                    params.append(f"%{f.value}%")
+                    params.append(f"%{val}%")
                 else:
                     # Default 'contains' (case-insensitive substring)
-                    where_clauses.append(f'CAST("{col}" AS VARCHAR) ILIKE ?')
-                    params.append(f"%{f.value}%")
+                    if val != val_no_commas:
+                        where_clauses.append(f'(CAST("{col}" AS VARCHAR) ILIKE ? OR CAST("{col}" AS VARCHAR) ILIKE ?)')
+                        params.append(f"%{val}%")
+                        params.append(f"%{val_no_commas}%")
+                    else:
+                        where_clauses.append(f'CAST("{col}" AS VARCHAR) ILIKE ?')
+                        params.append(f"%{val}%")
             elif f.type == 'numeric':
                 if f.min is not None and str(f.min).strip() != '':
-                    where_clauses.append(f'"{col}" >= ?')
-                    params.append(float(f.min))
+                    try:
+                        parsed_min = _parse_numeric_bound(f.min)
+                        where_clauses.append(f'"{col}" >= ?')
+                        params.append(parsed_min)
+                    except (ValueError, TypeError):
+                        pass
                 if f.max is not None and str(f.max).strip() != '':
-                    where_clauses.append(f'"{col}" <= ?')
-                    params.append(float(f.max))
+                    try:
+                        parsed_max = _parse_numeric_bound(f.max)
+                        where_clauses.append(f'"{col}" <= ?')
+                        params.append(parsed_max)
+                    except (ValueError, TypeError):
+                        pass
             elif f.type == 'date':
                 if f.selected_timestamps and len(f.selected_timestamps) > 0:
                     ts_conditions = []
@@ -506,10 +573,17 @@ class DuckDBService:
                         params.append(str(f.max))
 
         if global_search and global_search.strip() and columns:
+            raw_term = global_search.strip()
+            clean_term = raw_term.replace(',', '').strip() if (',' in raw_term and any(c.isdigit() for c in raw_term)) else None
             search_terms = []
             for col in columns:
-                search_terms.append(f"CAST({col} AS VARCHAR) ILIKE ?")
-                params.append(f"%{global_search.strip()}%")
+                if clean_term and clean_term != raw_term:
+                    search_terms.append(f'(CAST("{col}" AS VARCHAR) ILIKE ? OR CAST("{col}" AS VARCHAR) ILIKE ?)')
+                    params.append(f"%{raw_term}%")
+                    params.append(f"%{clean_term}%")
+                else:
+                    search_terms.append(f'CAST("{col}" AS VARCHAR) ILIKE ?')
+                    params.append(f"%{raw_term}%")
             where_clauses.append(f"({' OR '.join(search_terms)})")
 
         where_sql = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
@@ -591,12 +665,16 @@ class DuckDBService:
                     # Replace NaN / Inf with None for JSON compliance
                     df[col] = df[col].where(pd.notnull(df[col]), None)
 
-            # Replace any other NaN
+            # Replace any other NaN and preserve 64-bit integers exceeding safe JS limits
             records = df.to_dict(orient="records")
             for r in records:
                 for k, v in r.items():
                     if pd.isna(v):
                         r[k] = None
+                    elif isinstance(v, int) and (v > 9007199254740991 or v < -9007199254740991):
+                        # Convert 64-bit integers exceeding IEEE 754 safe integer limits to string
+                        # to prevent JavaScript JSON.parse rounding corruption
+                        r[k] = str(v)
 
             duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
             total_pages = (total_rows + page_size - 1) // page_size if total_rows > 0 else 1

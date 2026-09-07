@@ -55,6 +55,11 @@ class TopCategory(BaseModel):
     count: int
     percent: float
 
+class OtherCategory(BaseModel):
+    count: int = 0
+    percent: float = 0.0
+    distinct_count: int = 0
+
 class ColumnProfile(BaseModel):
     name: str
     column_type: str
@@ -67,6 +72,7 @@ class ColumnProfile(BaseModel):
     avg_value: Optional[float] = None
     histogram: List[HistogramBucket] = Field(default_factory=list)
     top_categories: List[TopCategory] = Field(default_factory=list)
+    other: Optional[OtherCategory] = None
     min_date: Optional[str] = None
     max_date: Optional[str] = None
 

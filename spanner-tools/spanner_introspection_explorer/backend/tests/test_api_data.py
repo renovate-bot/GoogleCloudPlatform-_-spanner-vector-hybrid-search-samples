@@ -168,4 +168,21 @@ def test_api_meta_summaries():
     data = response.json()
     assert isinstance(data, dict)
 
+def test_api_query_with_comma_bounds():
+    client = TestClient(app)
+    payload = {
+        "page": 1,
+        "page_size": 10,
+        "filters": {
+            "avg_rows_scanned": {"type": "numeric", "min": "100,000"}
+        },
+        "utc_offset": 0.0
+    }
+    response = client.post("/api/v1/tables/QUERY_STATS_TOP_10MINUTE/query", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["items"][0]["avg_rows_scanned"] == 120000.0
+
+
 

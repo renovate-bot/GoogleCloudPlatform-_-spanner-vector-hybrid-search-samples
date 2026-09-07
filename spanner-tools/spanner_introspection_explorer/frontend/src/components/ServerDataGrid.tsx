@@ -74,6 +74,8 @@ interface ServerDataGridProps {
   onExportCsv: () => void;
   onApplyRangeFilter?: (column: string, min: number, max: number) => void;
   onApplyCategoryFilter?: (column: string, value: string) => void;
+  onApplyNullFilter?: (column: string) => void;
+  onApplyOtherFilter?: (column: string, topValues: string[]) => void;
   exporting: boolean;
 }
 
@@ -93,6 +95,8 @@ export const ServerDataGrid: React.FC<ServerDataGridProps> = ({
   onExportCsv,
   onApplyRangeFilter,
   onApplyCategoryFilter,
+  onApplyNullFilter,
+  onApplyOtherFilter,
   exporting,
 }) => {
   const [showExporter, setShowExporter] = useState(false);
@@ -251,6 +255,15 @@ export const ServerDataGrid: React.FC<ServerDataGridProps> = ({
   const formatCellValue = (value: any, col: ColumnMetadata, rowNumber: number) => {
     if (value === null || value === undefined || value === '') {
       return <Typography variant="caption" sx={{ color: '#bdc1c6', fontStyle: 'italic' }}>null</Typography>;
+    }
+
+    // Discrete identifiers, fingerprints, and hashes should never have comma formatting
+    const isIdentifierCol =
+      /fingerprint|fprint|_id$|^id$/i.test(col.name) ||
+      (typeof value === 'number' && (value > Number.MAX_SAFE_INTEGER || value < Number.MIN_SAFE_INTEGER));
+
+    if (isIdentifierCol) {
+      return String(value);
     }
 
     if (typeof value === 'number') {
@@ -557,6 +570,12 @@ export const ServerDataGrid: React.FC<ServerDataGridProps> = ({
                           }}
                           onSelectCategory={(val) => {
                             if (onApplyCategoryFilter) onApplyCategoryFilter(col.name, val);
+                          }}
+                          onSelectNull={() => {
+                            if (onApplyNullFilter) onApplyNullFilter(col.name);
+                          }}
+                          onSelectOther={(topValues) => {
+                            if (onApplyOtherFilter) onApplyOtherFilter(col.name, topValues);
                           }}
                         />
                       )}

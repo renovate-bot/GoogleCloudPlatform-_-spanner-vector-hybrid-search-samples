@@ -65,8 +65,9 @@ export interface DatabasesResponse {
 
 export interface ColumnFilter {
   type: 'text' | 'numeric' | 'date';
-  operator?: 'contains' | 'exact' | 'not_contains' | 'not_exact';
+  operator?: 'contains' | 'exact' | 'not_contains' | 'not_exact' | 'is_null' | 'is_not_null' | 'not_in';
   value?: string;
+  values?: string[];
   min?: number | string;
   max?: number | string;
   selected_timestamps?: string[];
@@ -252,6 +253,12 @@ export interface TopCategory {
   percent: number;
 }
 
+export interface OtherCategory {
+  count: number;
+  percent: number;
+  distinct_count: number;
+}
+
 export interface ColumnProfile {
   name: string;
   column_type: string;
@@ -264,6 +271,7 @@ export interface ColumnProfile {
   avg_value?: number;
   histogram: HistogramBucket[];
   top_categories: TopCategory[];
+  other?: OtherCategory | null;
   min_date?: string;
   max_date?: string;
 }

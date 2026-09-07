@@ -17,8 +17,9 @@ from pydantic import BaseModel, Field
 
 class ColumnFilter(BaseModel):
     type: Literal["text", "numeric", "date"] = "text"
-    operator: Optional[Literal["contains", "exact", "not_contains", "not_exact"]] = "contains"
+    operator: Optional[Literal["contains", "exact", "not_contains", "not_exact", "is_null", "is_not_null", "not_in"]] = "contains"
     value: Optional[str] = None
+    values: Optional[List[str]] = Field(default_factory=list)
     min: Optional[float | str] = None
     max: Optional[float | str] = None
     selected_timestamps: Optional[List[str]] = Field(default_factory=list)

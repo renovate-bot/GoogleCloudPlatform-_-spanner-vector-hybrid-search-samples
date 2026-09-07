@@ -23,6 +23,8 @@ interface ColumnSparklineProps {
   profile?: ColumnProfile | null;
   onSelectFilterRange?: (min: number, max: number) => void;
   onSelectCategory?: (category: string) => void;
+  onSelectNull?: () => void;
+  onSelectOther?: (topValues: string[]) => void;
 }
 
 const CATEGORY_COLORS = ['#1a73e8', '#34a853', '#f29900', '#9334e6', '#80868b'];
@@ -38,6 +40,8 @@ export const ColumnSparkline: React.FC<ColumnSparklineProps> = ({
   profile,
   onSelectFilterRange,
   onSelectCategory,
+  onSelectNull,
+  onSelectOther,
 }) => {
   if (!profile || !profile.total_count || profile.total_count === 0) {
     return (
@@ -134,6 +138,12 @@ export const ColumnSparkline: React.FC<ColumnSparklineProps> = ({
       );
     }
 
+    const topCountSum = top_categories.reduce((acc, c) => acc + (c && typeof c.count === 'number' ? c.count : 0), 0);
+    const nullCount = null_count || 0;
+    const otherCount = profile.other?.count ?? Math.max(0, total_count - nullCount - topCountSum);
+    const otherPct = profile.other?.percent ?? (total_count > 0 ? Number(((otherCount / total_count) * 100).toFixed(1)) : 0);
+    const otherDistinct = profile.other?.distinct_count ?? Math.max(0, distinct_count - top_categories.length);
+
     return (
       <Box sx={{ height: 20, display: 'flex', flexDirection: 'column', justifyContent: 'center', width: '100%' }}>
         <Box
@@ -143,7 +153,7 @@ export const ColumnSparkline: React.FC<ColumnSparklineProps> = ({
             width: '100%',
             borderRadius: '2px',
             overflow: 'hidden',
-            backgroundColor: '#e8eaed',
+            backgroundColor: otherCount > 0 ? '#80868b' : '#dadce0',
           }}
         >
           {top_categories.map((cat, idx) => {
@@ -151,6 +161,9 @@ export const ColumnSparkline: React.FC<ColumnSparklineProps> = ({
             const count = typeof cat.count === 'number' ? cat.count : 0;
             const percent = typeof cat.percent === 'number' ? cat.percent : 0;
             const displayLabel = cat.display_value || cat.value || '';
+            const widthPct = total_count > 0 ? (count / total_count) * 100 : 0;
+            if (widthPct <= 0) return null;
+
             return (
               <Tooltip
                 key={cat.value || idx}
@@ -167,7 +180,7 @@ export const ColumnSparkline: React.FC<ColumnSparklineProps> = ({
                     }
                   }}
                   sx={{
-                    width: `${percent}%`,
+                    width: `${widthPct}%`,
                     height: '100%',
                     backgroundColor: CATEGORY_COLORS[idx % CATEGORY_COLORS.length],
                     cursor: onSelectCategory ? 'pointer' : 'default',
@@ -177,9 +190,55 @@ export const ColumnSparkline: React.FC<ColumnSparklineProps> = ({
               </Tooltip>
             );
           })}
-          {nullPct > 0 && (
-            <Tooltip title={`NULL: ${formatNum(null_count)} rows (${nullPct}%)`} arrow placement="top">
-              <Box sx={{ width: `${nullPct}%`, height: '100%', backgroundColor: '#dadce0' }} />
+          {otherCount > 0 && (
+            <Tooltip
+              title={`Other (${formatNum(otherDistinct)} distinct values): ${formatNum(otherCount)} rows (${otherPct}%)${onSelectOther ? ' • Click to filter Other' : ''}`}
+              arrow
+              placement="top"
+              enterDelay={150}
+            >
+              <Box
+                onClick={(e) => {
+                  if (onSelectOther) {
+                    e.stopPropagation();
+                    const topVals = top_categories
+                      .map((c) => c?.value)
+                      .filter((v): v is string => v !== undefined && v !== null && v !== '');
+                    onSelectOther(topVals);
+                  }
+                }}
+                sx={{
+                  width: `${(otherCount / total_count) * 100}%`,
+                  height: '100%',
+                  backgroundColor: '#80868b',
+                  cursor: onSelectOther ? 'pointer' : 'default',
+                  '&:hover': { filter: 'brightness(0.9)' },
+                }}
+              />
+            </Tooltip>
+          )}
+          {nullCount > 0 && (
+            <Tooltip
+              title={`NULL: ${formatNum(nullCount)} rows (${nullPct}%)${onSelectNull ? ' • Click to filter NULL' : ''}`}
+              arrow
+              placement="top"
+              enterDelay={150}
+            >
+              <Box
+                onClick={(e) => {
+                  if (onSelectNull) {
+                    e.stopPropagation();
+                    onSelectNull();
+                  }
+                }}
+                sx={{
+                  width: `${(nullCount / total_count) * 100}%`,
+                  height: '100%',
+                  backgroundColor: '#dadce0',
+                  cursor: onSelectNull ? 'pointer' : 'default',
+                  '&:hover': { filter: 'brightness(0.9)' },
+                }}
+              />
             </Tooltip>
           )}
         </Box>
