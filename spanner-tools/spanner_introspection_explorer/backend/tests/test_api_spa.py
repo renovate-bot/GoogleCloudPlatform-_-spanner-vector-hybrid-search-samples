@@ -22,6 +22,33 @@ def test_api_health():
     assert res.status_code == 200
     assert res.json() == {"status": "ok", "version": "2.0.0"}
 
+def test_api_status_aliases():
+    client = TestClient(app)
+    res_api_status = client.get("/api/status")
+    assert res_api_status.status_code == 200
+    assert res_api_status.json() == {"status": "ok", "version": "2.0.0"}
+
+    res_status = client.get("/status")
+    assert res_status.status_code == 200
+    assert res_status.json() == {"status": "ok", "version": "2.0.0"}
+
+def test_unhandled_api_returns_404():
+    client = TestClient(app)
+    res = client.get("/api/unknown_endpoint")
+    assert res.status_code == 404
+    assert res.json() == {"detail": "API endpoint not found"}
+
+def test_sw_js_not_served_as_spa():
+    client = TestClient(app)
+    # Service worker probes should return 404 rather than index.html so browsers unregister stale workers
+    res_sw = client.get("/sw.js")
+    assert res_sw.status_code == 404
+    assert res_sw.json() == {"detail": "No service worker configured"}
+
+    res_sw2 = client.get("/service-worker.js")
+    assert res_sw2.status_code == 404
+    assert res_sw2.json() == {"detail": "No service worker configured"}
+
 def test_spa_index_served():
     client = TestClient(app)
     res = client.get("/")

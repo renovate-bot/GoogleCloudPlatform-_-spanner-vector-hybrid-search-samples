@@ -154,6 +154,39 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
       }}
     >
       <Box sx={{ overflowY: 'auto', p: 1.2, display: 'flex', flexDirection: 'column', height: '100%' }}>
+        {/* Admin Section (Top) */}
+        <Box sx={{ mb: 1 }}>
+          <Typography
+            variant="caption"
+            sx={{ px: 0.5, py: 0.5, fontWeight: 700, color: gcpPalette.neutral.textSecondary, letterSpacing: '0.5px', fontSize: '0.72rem' }}
+          >
+            ADMIN
+          </Typography>
+          <List dense disablePadding sx={{ mt: 0.5 }}>
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={currentView === 'connections'}
+                onClick={() => onSelectView('', 'connections')}
+                sx={{
+                  borderRadius: '4px',
+                  py: 0.6,
+                  '&.Mui-selected': {
+                    backgroundColor: gcpPalette.primary.light,
+                    color: gcpPalette.primary.main,
+                    '& .MuiListItemIcon-root': { color: gcpPalette.primary.main },
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 32, color: currentView === 'connections' ? gcpPalette.primary.main : gcpPalette.neutral.textSecondary }}>
+                  <SettingsIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText primary="Database Connections" primaryTypographyProps={{ fontSize: '0.8125rem', fontWeight: 500 }} />
+              </ListItemButton>
+            </ListItem>
+          </List>
+          <Divider sx={{ mt: 1.5, mb: 1.5 }} />
+        </Box>
+
         {/* Databases Section Header with Expand/Collapse All and Add Connection */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 0.5, py: 0.5, mb: 1 }}>
           <Typography
@@ -479,39 +512,6 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
             })
           )}
         </List>
-
-        {/* Bottom Admin Section */}
-        <Box sx={{ mt: 'auto', pt: 1 }}>
-          <Divider sx={{ mb: 1 }} />
-          <Typography
-            variant="caption"
-            sx={{ px: 1, py: 0.5, fontWeight: 700, color: gcpPalette.neutral.textSecondary, letterSpacing: '0.5px' }}
-          >
-            ADMIN
-          </Typography>
-          <List dense disablePadding>
-            <ListItem disablePadding sx={{ mt: 0.5 }}>
-              <ListItemButton
-                selected={currentView === 'connections'}
-                onClick={() => onSelectView('', 'connections')}
-                sx={{
-                  borderRadius: '4px',
-                  py: 0.6,
-                  '&.Mui-selected': {
-                    backgroundColor: gcpPalette.primary.light,
-                    color: gcpPalette.primary.main,
-                    '& .MuiListItemIcon-root': { color: gcpPalette.primary.main },
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 32, color: gcpPalette.neutral.textSecondary }}>
-                  <SettingsIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText primary="Database Connections" primaryTypographyProps={{ fontSize: '0.8125rem', fontWeight: 500 }} />
-              </ListItemButton>
-            </ListItem>
-          </List>
-        </Box>
       </Box>
     </Drawer>
   );

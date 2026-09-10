@@ -83,6 +83,8 @@ def create_app() -> FastAPI:
     app.include_router(gcp_router, prefix=api_prefix)
 
     @app.get("/api/health")
+    @app.get("/api/status")
+    @app.get("/status")
     async def health_check():
         return {"status": "ok", "version": "2.0.0"}
 
@@ -96,6 +98,11 @@ def create_app() -> FastAPI:
             # Don't intercept API routes
             if full_path.startswith("api/"):
                 return JSONResponse(status_code=404, content={"detail": "API endpoint not found"})
+
+            # Do not serve index.html for service worker update probes; returning 404 allows
+            # browsers to unregister obsolete service workers left over from other localhost apps.
+            if full_path in ("sw.js", "service-worker.js"):
+                return JSONResponse(status_code=404, content={"detail": "No service worker configured"})
             
             target_file = static_dir / full_path
             if full_path and target_file.exists() and target_file.is_file():
