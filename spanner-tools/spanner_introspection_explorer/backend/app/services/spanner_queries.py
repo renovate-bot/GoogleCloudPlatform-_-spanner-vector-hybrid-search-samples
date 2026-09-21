@@ -180,11 +180,36 @@ ORDER BY
 """,
 
     "export_all_SPLIT_STATS_TOP_MINUTE": """
-SELECT t.split_start,
+SELECT t.interval_end,
+       t.split_start,
        t.split_limit,
        t.cpu_usage_score,
-       t.affected_tables
-FROM SPANNER_SYS.SPLIT_STATS_TOP_MINUTE t;
+       t.affected_tables,
+       t.unsplittable_reasons
+FROM SPANNER_SYS.SPLIT_STATS_TOP_MINUTE t
+ORDER BY t.interval_end DESC, t.cpu_usage_score DESC;
+""",
+
+    "export_all_SPLIT_STATS_TOP_10MINUTE": """
+SELECT t.interval_end,
+       t.split_start,
+       t.split_limit,
+       t.cpu_usage_score,
+       t.affected_tables,
+       t.unsplittable_reasons
+FROM SPANNER_SYS.SPLIT_STATS_TOP_10MINUTE t
+ORDER BY t.interval_end DESC, t.cpu_usage_score DESC;
+""",
+
+    "export_all_SPLIT_STATS_TOP_HOUR": """
+SELECT t.interval_end,
+       t.split_start,
+       t.split_limit,
+       t.cpu_usage_score,
+       t.affected_tables,
+       t.unsplittable_reasons
+FROM SPANNER_SYS.SPLIT_STATS_TOP_HOUR t
+ORDER BY t.interval_end DESC, t.cpu_usage_score DESC;
 """,
 
     "export_all_TXN_STATS_TOP_1MIN": """
@@ -460,11 +485,36 @@ ORDER BY
 """,
 
     "export_all_SPLIT_STATS_TOP_MINUTE": """
-SELECT t.split_start,
+SELECT t.interval_end,
+       t.split_start,
        t.split_limit,
        t.cpu_usage_score,
-       t.affected_tables
-FROM SPANNER_SYS.SPLIT_STATS_TOP_MINUTE t;
+       t.affected_tables,
+       t.unsplittable_reasons
+FROM SPANNER_SYS.SPLIT_STATS_TOP_MINUTE t
+ORDER BY t.interval_end DESC, t.cpu_usage_score DESC;
+""",
+
+    "export_all_SPLIT_STATS_TOP_10MINUTE": """
+SELECT t.interval_end,
+       t.split_start,
+       t.split_limit,
+       t.cpu_usage_score,
+       t.affected_tables,
+       t.unsplittable_reasons
+FROM SPANNER_SYS.SPLIT_STATS_TOP_10MINUTE t
+ORDER BY t.interval_end DESC, t.cpu_usage_score DESC;
+""",
+
+    "export_all_SPLIT_STATS_TOP_HOUR": """
+SELECT t.interval_end,
+       t.split_start,
+       t.split_limit,
+       t.cpu_usage_score,
+       t.affected_tables,
+       t.unsplittable_reasons
+FROM SPANNER_SYS.SPLIT_STATS_TOP_HOUR t
+ORDER BY t.interval_end DESC, t.cpu_usage_score DESC;
 """,
 
     "export_all_TXN_STATS_TOP_1MIN": """
