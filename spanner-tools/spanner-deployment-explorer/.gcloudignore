@@ -1,0 +1,42 @@
+# This file specifies files and directories that should not be uploaded
+# to Google Cloud Platform when using gcloud app deploy.
+
+# Git repository
+.git/
+.gitignore
+
+# Operating system files
+.DS_Store
+*.log
+scratch/
+
+# Python virtual environment & cache
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Frontend development dependencies
+frontend/node_modules/
+node_modules/
+
+# Benchmark runner build artifacts & runtime logs (not needed in App Engine)
+benchmark/
+backend/data/benchmarks.json
+
+
+
+# Secrets, Credentials, Tokens (Zero PII / Secrets)
+*.pem
+*.key
+gemini.key
+*.p12
+*.crt
+*credentials*.json
+*service-account*.json
+*secret*.json
+*token*.json
+.env*
+.gcloud/

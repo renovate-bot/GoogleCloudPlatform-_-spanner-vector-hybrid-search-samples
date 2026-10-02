@@ -1,0 +1,37 @@
+# Git & development
+.git
+.gitignore
+.DS_Store
+*.log
+scratch/
+
+# Python virtual environment & cache
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Frontend development dependencies
+frontend/node_modules/
+node_modules/
+
+# Benchmark runner build artifacts & runtime logs
+benchmark/
+backend/data/benchmarks.json
+
+
+
+# Secrets, Credentials, Tokens (Zero PII / Secrets)
+*.pem
+*.key
+gemini.key
+*.p12
+*.crt
+*credentials*.json
+*service-account*.json
+*secret*.json
+*token*.json
+.env*
+.gcloud/

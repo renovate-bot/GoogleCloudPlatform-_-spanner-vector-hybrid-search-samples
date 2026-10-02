@@ -1,0 +1,183 @@
+id,configname,region,type,instancetype,continentregion
+1,asia1,asia-northeast1,leader,multi-region,Asia
+1,asia1,asia-northeast2,r/w replica,multi-region,Asia
+1,asia1,asia-northeast3,witness,multi-region,Asia
+1,asia1,us-east5,optional read only,multi-region,Asia
+1,asia1,us-west1,optional read only,multi-region,Asia
+2,asia2,asia-south1,leader,multi-region,Asia
+2,asia2,asia-south2,r/w replica,multi-region,Asia
+2,asia2,asia-southeast1,r/w replica,multi-region,Asia
+3,eur3,europe-west1,leader,multi-region,Europe
+3,eur3,europe-west4,r/w replica,multi-region,Europe
+3,eur3,europe-north1,witness,multi-region,Europe
+3,eur3,us-central1,optional read only,multi-region,Europe
+3,eur3,us-east4,optional read only,multi-region,Europe
+4,eur5,europe-west2,leader,multi-region,Europe
+4,eur5,europe-west1,r/w replica,multi-region,Europe
+4,eur5,europe-west4,witness,multi-region,Europe
+4,eur5,us-central1,optional read only,multi-region,Europe
+4,eur5,us-east1,optional read only,multi-region,Europe
+5,eur6,europe-west4,leader,multi-region,Europe
+5,eur6,europe-west3,r/w replica,multi-region,Europe
+5,eur6,europe-west6,witness,multi-region,Europe
+5,eur6,us-east1,optional read only,multi-region,Europe
+6,eur7,europe-west8,leader,multi-region,Europe
+6,eur7,europe-west3,r/w replica,multi-region,Europe
+6,eur7,europe-west12,witness,multi-region,Europe
+7,nam3,us-east4,leader,multi-region,North America
+7,nam3,us-east1,r/w replica,multi-region,North America
+7,nam3,us-central1,witness,multi-region,North America
+7,nam3,asia-south1,optional read only,multi-region,North America
+7,nam3,asia-southeast1,optional read only,multi-region,North America
+7,nam3,asia-southeast2,optional read only,multi-region,North America
+7,nam3,europe-west1,optional read only,multi-region,North America
+7,nam3,europe-west2,optional read only,multi-region,North America
+7,nam3,europe-west4,optional read only,multi-region,North America
+7,nam3,europe-west9,optional read only,multi-region,North America
+7,nam3,us-east5,optional read only,multi-region,North America
+7,nam3,us-west1,optional read only,multi-region,North America
+7,nam3,us-west2,optional read only,multi-region,North America
+7,nam3,us-west4,optional read only,multi-region,North America
+7,nam3,us-west8,optional read only,multi-region,North America
+8,nam6,us-central1,leader,multi-region,North America
+8,nam6,us-east1,r/w replica,multi-region,North America
+8,nam6,us-west1,read only,multi-region,North America
+8,nam6,us-west2,read only,multi-region,North America
+8,nam6,us-central2,witness,multi-region,North America
+9,nam7,us-central1,leader,multi-region,North America
+9,nam7,us-east4,r/w replica,multi-region,North America
+9,nam7,us-central2,witness,multi-region,North America
+9,nam7,europe-west1,optional read only,multi-region,North America
+9,nam7,us-east1,optional read only,multi-region,North America
+9,nam7,us-south1,optional read only,multi-region,North America
+9,nam7,us-west1,optional read only,multi-region,North America
+10,nam8,us-west2,leader,multi-region,North America
+10,nam8,us-west1,r/w replica,multi-region,North America
+10,nam8,us-west3,witness,multi-region,North America
+10,nam8,asia-northeast1,optional read only,multi-region,North America
+10,nam8,asia-southeast1,optional read only,multi-region,North America
+10,nam8,europe-west2,optional read only,multi-region,North America
+10,nam8,europe-west3,optional read only,multi-region,North America
+10,nam8,us-east5,optional read only,multi-region,North America
+11,nam9,us-east4,leader,multi-region,North America
+11,nam9,us-central1,r/w replica,multi-region,North America
+11,nam9,us-east1,witness,multi-region,North America
+11,nam9,us-west1,read only,multi-region,North America
+12,nam10,us-central1,leader,multi-region,North America
+12,nam10,us-west3,r/w replica,multi-region,North America
+12,nam10,us-central2,witness,multi-region,North America
+12,nam10,us-east4,optional read only,multi-region,North America
+13,nam11,us-central1,leader,multi-region,North America
+13,nam11,us-east1,r/w replica,multi-region,North America
+13,nam11,us-central2,witness,multi-region,North America
+13,nam11,us-west1,optional read only,multi-region,North America
+14,nam12,us-central1,leader,multi-region,North America
+14,nam12,us-east4,r/w replica,multi-region,North America
+14,nam12,us-west1,read only,multi-region,North America
+14,nam12,us-central2,witness,multi-region,North America
+15,nam13,us-central2,leader,multi-region,North America
+15,nam13,us-central1,r/w replica,multi-region,North America
+15,nam13,us-west3,witness,multi-region,North America
+16,nam14,us-east4,leader,multi-region,North America
+16,nam14,northamerica-northeast1,r/w replica,multi-region,North America
+16,nam14,us-east1,witness,multi-region,North America
+17,nam15,us-south1,leader,multi-region,North America
+17,nam15,us-east4,r/w replica,multi-region,North America
+17,nam15,us-central1,witness,multi-region,North America
+17,nam15,us-central2,optional read only,multi-region,North America
+17,nam15,us-east1,optional read only,multi-region,North America
+17,nam15,us-west3,optional read only,multi-region,North America
+18,nam16,us-central1,leader,multi-region,North America
+18,nam16,us-east4,r/w replica,multi-region,North America
+18,nam16,us-east5,witness,multi-region,North America
+18,nam16,us-west2,optional read only,multi-region,North America
+19,nam22,us-east5,leader,multi-region,North America
+19,nam22,us-east1,r/w replica,multi-region,North America
+19,nam22,us-east4,witness,multi-region,North America
+19,nam22,us-west1,optional read only,multi-region,North America
+20,nam23,us-west4,leader,multi-region,North America
+20,nam23,us-central1,r/w replica,multi-region,North America
+20,nam23,us-south1,witness,multi-region,North America
+20,nam23,asia-northeast1,optional read only,multi-region,North America
+20,nam23,australia-southeast2,optional read only,multi-region,North America
+20,nam23,europe-west1,optional read only,multi-region,North America
+20,nam23,europe-west3,optional read only,multi-region,North America
+21,nam-eur-asia1,us-central1,leader,multi-region,Global
+21,nam-eur-asia1,us-central2,r/w replica,multi-region,Global
+21,nam-eur-asia1,europe-west1,read only,multi-region,Global
+21,nam-eur-asia1,asia-east1,read only,multi-region,Global
+21,nam-eur-asia1,us-east1,witness,multi-region,Global
+21,nam-eur-asia1,us-west2,optional read only,multi-region,Global
+22,nam-eur-asia3,us-central1,leader,multi-region,Global
+22,nam-eur-asia3,us-east1,r/w replica,multi-region,Global
+22,nam-eur-asia3,us-central2,witness,multi-region,Global
+22,nam-eur-asia3,europe-west1,read only,multi-region,Global
+22,nam-eur-asia3,europe-west4,read only,multi-region,Global
+22,nam-eur-asia3,asia-east1,read only,multi-region,Global
+23,dual-region-australia1,australia-southeast1,leader,dual-region,Australia
+23,dual-region-australia1,australia-southeast2,r/w replica,dual-region,Australia
+24,dual-region-canada1,northamerica-northeast2,leader,dual-region,North America
+24,dual-region-canada1,northamerica-northeast1,r/w replica,dual-region,North America
+25,dual-region-germany1,europe-west10,leader,dual-region,Europe
+25,dual-region-germany1,europe-west3,r/w replica,dual-region,Europe
+26,dual-region-india1,asia-south1,leader,dual-region,Asia
+26,dual-region-india1,asia-south2,r/w replica,dual-region,Asia
+27,dual-region-japan1,asia-northeast1,leader,dual-region,Asia
+27,dual-region-japan1,asia-northeast2,r/w replica,dual-region,Asia
+28,africa-south1,africa-south1,leader,regional,Africa
+29,asia-east1,asia-east1,leader,regional,Asia
+30,asia-east2,asia-east2,leader,regional,Asia
+31,asia-northeast1,asia-northeast1,leader,regional,Asia
+32,asia-northeast2,asia-northeast2,leader,regional,Asia
+33,asia-northeast3,asia-northeast3,leader,regional,Asia
+34,asia-south1,asia-south1,leader,regional,Asia
+35,asia-south2,asia-south2,leader,regional,Asia
+36,asia-southeast1,asia-southeast1,leader,regional,Asia
+37,asia-southeast2,asia-southeast2,leader,regional,Asia
+38,asia-southeast3,asia-southeast3,leader,regional,Asia
+39,australia-southeast1,australia-southeast1,leader,regional,Australia
+40,australia-southeast2,australia-southeast2,leader,regional,Australia
+41,europe-central2,europe-central2,leader,regional,Europe
+42,europe-north1,europe-north1,leader,regional,Europe
+43,europe-north2,europe-north2,leader,regional,Europe
+44,europe-southwest1,europe-southwest1,leader,regional,Europe
+45,europe-west1,europe-west1,leader,regional,Europe
+45,europe-west1,us-central1,optional read only,regional,Europe
+45,europe-west1,us-west1,optional read only,regional,Europe
+46,europe-west10,europe-west10,leader,regional,Europe
+47,europe-west12,europe-west12,leader,regional,Europe
+48,europe-west2,europe-west2,leader,regional,Europe
+49,europe-west3,europe-west3,leader,regional,Europe
+50,europe-west4,europe-west4,leader,regional,Europe
+51,europe-west6,europe-west6,leader,regional,Europe
+52,europe-west8,europe-west8,leader,regional,Europe
+53,europe-west9,europe-west9,leader,regional,Europe
+54,me-central1,me-central1,leader,regional,Middle East
+55,me-central2,me-central2,leader,regional,Middle East
+56,me-west1,me-west1,leader,regional,Middle East
+57,northamerica-northeast1,northamerica-northeast1,leader,regional,North America
+58,northamerica-northeast2,northamerica-northeast2,leader,regional,North America
+59,northamerica-south1,northamerica-south1,leader,regional,North America
+60,southamerica-east1,southamerica-east1,leader,regional,South America
+61,southamerica-west1,southamerica-west1,leader,regional,South America
+62,us-central1,us-central1,leader,regional,North America
+62,us-central1,asia-northeast1,optional read only,regional,North America
+62,us-central1,asia-south1,optional read only,regional,North America
+62,us-central1,europe-west1,optional read only,regional,North America
+62,us-central1,europe-west2,optional read only,regional,North America
+62,us-central1,europe-west9,optional read only,regional,North America
+62,us-central1,us-west3,optional read only,regional,North America
+63,us-east1,us-east1,leader,regional,North America
+63,us-east1,europe-west1,optional read only,regional,North America
+63,us-east1,europe-west3,optional read only,regional,North America
+63,us-east1,us-central1,optional read only,regional,North America
+63,us-east1,us-west1,optional read only,regional,North America
+64,us-east4,us-east4,leader,regional,North America
+65,us-east5,us-east5,leader,regional,North America
+65,us-east5,us-central1,optional read only,regional,North America
+66,us-south1,us-south1,leader,regional,North America
+67,us-west1,us-west1,leader,regional,North America
+68,us-west2,us-west2,leader,regional,North America
+69,us-west3,us-west3,leader,regional,North America
+70,us-west4,us-west4,leader,regional,North America
+71,us-west8,us-west8,leader,regional,North America

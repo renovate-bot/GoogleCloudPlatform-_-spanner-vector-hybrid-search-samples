@@ -1,0 +1,46 @@
+region,locationname,lat,lon
+asia-east1,Taiwan,23.6978,120.9605
+asia-east2,Hong Kong,22.3193,114.1694
+asia-northeast1,Tokyo,35.6762,139.6503
+asia-northeast2,Osaka,34.6937,135.5023
+asia-northeast3,Seoul,37.5665,126.978
+asia-south1,Mumbai,19.076,72.8777
+asia-south2,Delhi,28.6139,77.209
+asia-southeast1,Singapore,1.3521,103.8198
+asia-southeast2,Jakarta,-6.2088,106.8456
+australia-southeast1,Sydney,-33.8688,151.2093
+australia-southeast2,Melbourne,-37.8136,144.9631
+europe-central2,Warsaw,52.2297,21.0122
+europe-north1,Finland,61.9241,25.7482
+europe-southwest1,Madrid,40.4168,-3.7038
+europe-west1,Belgium,50.8503,4.3517
+europe-west10,Berlin,52.52,13.405
+europe-west12,Turin,45.0703,7.6869
+europe-west2,London,51.5074,-0.1276
+europe-west3,Frankfurt,50.1109,8.6821
+europe-west4,Netherlands,52.1326,5.2913
+europe-west6,Zurich,47.3769,8.5417
+europe-west8,Milan,45.4642,9.19
+europe-west9,Paris,48.8566,2.3522
+me-central1,Doha,25.276987,51.520008
+me-west1,Tel Aviv,32.0853,34.7818
+northamerica-northeast1,Montreal,45.5017,-73.5673
+northamerica-northeast2,Toronto,43.6532,-79.3832
+southamerica-east1,Sao Paulo,-23.5505,-46.6333
+us-central1,Iowa,41.878,-93.0977
+us-east1,South Carolina,33.8361,-81.1637
+us-east4,Northern Virginia,38.9517,-77.0369
+us-east5,Columbus,39.9612,-82.9988
+us-west1,Oregon,43.8041,-120.5542
+us-west2,Los Angeles,34.0522,-118.2437
+us-west3,Salt Lake City,40.7608,-111.891
+us-west4,Las Vegas,36.1699,-115.1398
+africa-south1,Johannesburg,-26.2041,28.0473
+us-central2,Oklahoma,35.4676,-97.5164
+me-central2,Dammam,26.4207,50.0888
+southamerica-west1,Santiago,-33.4489,-70.6693
+us-south1,Dallas,32.7767,-96.797
+asia-southeast3,Bangkok,13.7563,100.5018
+europe-north2,Stockholm,59.3293,18.0686
+northamerica-south1,Querétaro,20.5888,-100.3899
+us-west8,Phoenix,33.4484,-112.0740

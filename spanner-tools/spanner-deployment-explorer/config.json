@@ -1,0 +1,16 @@
+{
+  "features": {
+    "enable_load_testing": true,
+    "allow_dry_run": false,
+    "allow_multiple_selections": false,
+    "enable_edge_latency": true,
+    "enable_ai": true
+  },
+  "load_testing": {
+    "default_client_regions": [],
+    "default_operations": 1000,
+    "default_staleness_seconds": 15,
+    "gce_machine_type": "e2-standard-2",
+    "spanner_nodes": 1
+  }
+}

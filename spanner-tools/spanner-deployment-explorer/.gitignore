@@ -1,0 +1,74 @@
+# Node & Vite
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing & Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Static output (frontend build artifact)
+backend/app/static/*
+!backend/app/static/.gitkeep
+
+# OS
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Java & Maven
+target/
+benchmark/target/
+*.class
+dependency-reduced-pom.xml
+benchmark/dependency-reduced-pom.xml
+*.lst
+
+# Runtime data store (campaign history & run logs)
+backend/data/benchmarks.json
+
+# Gemini AI API Key (Zero Secrets in Git)
+gemini.key
+*.key
+
+GEMINI.md
+walkthrough.md
+docs/walkthrough.md
+
