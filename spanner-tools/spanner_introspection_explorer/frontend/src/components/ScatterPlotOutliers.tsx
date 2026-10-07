@@ -102,20 +102,31 @@ export const ScatterPlotOutliers: React.FC<ScatterPlotOutliersProps> = ({
       .then((def) => {
         if (!isMounted) return;
         setDefaults(def);
-        setXCol(def.x_col || (def.numeric_cols[0] || ''));
-        setYCol(def.y_col || (def.numeric_cols[1] || def.numeric_cols[0] || ''));
+        const resolvedX = def.x_col || (def.numeric_cols[0] || '');
+        const resolvedY = def.y_col || (def.numeric_cols[1] || def.numeric_cols[0] || '');
+        setXCol(resolvedX);
+        setYCol(resolvedY);
         setSizeCol(def.size_col || '');
         setLabelCol(def.label_col || '');
+        if (!resolvedX || !resolvedY) {
+          setLoading(false);
+          setPoints([]);
+        }
       })
       .catch((err) => {
         console.error('Failed to load scatter defaults', err);
+        if (isMounted) setLoading(false);
       });
     return () => { isMounted = false; };
   }, [tableName, db]);
 
   // 2. Fetch scatter plot data whenever axes or table filters change
   useEffect(() => {
-    if (!xCol || !yCol) return;
+    if (!xCol || !yCol) {
+      setLoading(false);
+      setPoints([]);
+      return;
+    }
     setLoading(true);
     let isMounted = true;
 
@@ -144,6 +155,22 @@ export const ScatterPlotOutliers: React.FC<ScatterPlotOutliersProps> = ({
     return () => { isMounted = false; };
   }, [tableName, xCol, yCol, sizeCol, labelCol, filters, utcOffset, db]);
 
+  // Clear hovered outlier whenever filters, table, or axes change
+  useEffect(() => {
+    setHoveredPoint(null);
+  }, [filters, tableName, xCol, yCol]);
+
+  // Global Escape key listener to dismiss tooltip immediately
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setHoveredPoint(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Dimensions
   const SVG_WIDTH = Math.max(600, svgWidth);
   const SVG_HEIGHT = 280;
@@ -169,6 +196,12 @@ export const ScatterPlotOutliers: React.FC<ScatterPlotOutliersProps> = ({
       maxSize: Math.max(...ss),
     };
   }, [points]);
+
+  // Ensure tooltip only renders if the point exists in the currently loaded dataset
+  const activeHoveredPoint = useMemo(() => {
+    if (!hoveredPoint) return null;
+    return points.find((p) => p.id === hoveredPoint.id) || null;
+  }, [hoveredPoint, points]);
 
   const transformX = (val: number) => {
     if (isLogScale) {
@@ -447,7 +480,11 @@ export const ScatterPlotOutliers: React.FC<ScatterPlotOutliersProps> = ({
       </Box>
 
       {/* Main SVG Visualization Canvas with Drag-and-Drop Box Selection */}
-      <Box ref={containerRef} sx={{ position: 'relative', width: '100%', overflowX: 'auto', userSelect: 'none' }}>
+      <Box
+        ref={containerRef}
+        onMouseLeave={() => setHoveredPoint(null)}
+        sx={{ position: 'relative', width: '100%', overflowX: 'auto', userSelect: 'none' }}
+      >
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: SVG_HEIGHT }}>
             <CircularProgress size={32} />
@@ -463,6 +500,7 @@ export const ScatterPlotOutliers: React.FC<ScatterPlotOutliersProps> = ({
             height={SVG_HEIGHT}
             viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
             style={{ display: 'block', cursor: isDragging ? 'crosshair' : 'default' }}
+            onClick={() => setHoveredPoint(null)}
             onMouseDown={(e) => {
               if (e.button !== 0) return;
               const coords = getSvgCoordinates(e);
@@ -513,6 +551,7 @@ export const ScatterPlotOutliers: React.FC<ScatterPlotOutliersProps> = ({
               setDragCurrent(null);
             }}
             onMouseLeave={() => {
+              setHoveredPoint(null);
               if (isDragging) {
                 setIsDragging(false);
                 setDragStart(null);
@@ -667,6 +706,7 @@ export const ScatterPlotOutliers: React.FC<ScatterPlotOutliersProps> = ({
                   onMouseLeave={() => setHoveredPoint(null)}
                   onClick={(e) => {
                     e.stopPropagation();
+                    setHoveredPoint(null);
                     onSelectOutlier(p, labelCol || xCol);
                   }}
                 />
@@ -703,7 +743,7 @@ export const ScatterPlotOutliers: React.FC<ScatterPlotOutliersProps> = ({
         )}
 
         {/* Hover Outlier Tooltip */}
-        {hoveredPoint && (
+        {activeHoveredPoint && (
           <Paper
             elevation={4}
             sx={{
@@ -726,44 +766,44 @@ export const ScatterPlotOutliers: React.FC<ScatterPlotOutliersProps> = ({
             <Box sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 8px', fontSize: '0.75rem', mb: 1 }}>
               <Typography variant="caption" sx={{ color: gcpPalette.neutral.textSecondary, fontWeight: 500 }}>{xCol}:</Typography>
               <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                {formatValue(hoveredPoint.x, xCol)} <span style={{ opacity: 0.6 }}>({hoveredPoint.x.toLocaleString()}{getRawUnit(xCol)})</span>
+                {formatValue(activeHoveredPoint.x, xCol)} <span style={{ opacity: 0.6 }}>({activeHoveredPoint.x.toLocaleString()}{getRawUnit(xCol)})</span>
               </Typography>
 
               <Typography variant="caption" sx={{ color: gcpPalette.neutral.textSecondary, fontWeight: 500 }}>{yCol}:</Typography>
               <Typography variant="caption" sx={{ fontWeight: 600, color: gcpPalette.primary.dark }}>
-                {formatValue(hoveredPoint.y, yCol)} <span style={{ opacity: 0.6 }}>({hoveredPoint.y.toLocaleString()}{getRawUnit(yCol)})</span>
+                {formatValue(activeHoveredPoint.y, yCol)} <span style={{ opacity: 0.6 }}>({activeHoveredPoint.y.toLocaleString()}{getRawUnit(yCol)})</span>
               </Typography>
 
               {sizeCol && (
                 <>
                   <Typography variant="caption" sx={{ color: gcpPalette.neutral.textSecondary, fontWeight: 500 }}>{sizeCol}:</Typography>
                   <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                    {formatValue(hoveredPoint.size, sizeCol)} <span style={{ opacity: 0.6 }}>({hoveredPoint.size.toLocaleString()}{getRawUnit(sizeCol)})</span>
+                    {formatValue(activeHoveredPoint.size, sizeCol)} <span style={{ opacity: 0.6 }}>({activeHoveredPoint.size.toLocaleString()}{getRawUnit(sizeCol)})</span>
                   </Typography>
                 </>
               )}
 
-              {hoveredPoint.interval && (
+              {activeHoveredPoint.interval && (
                 <>
                   <Typography variant="caption" sx={{ color: gcpPalette.neutral.textSecondary, fontWeight: 500 }}>Interval:</Typography>
-                  <Typography variant="caption">{hoveredPoint.interval}</Typography>
+                  <Typography variant="caption">{activeHoveredPoint.interval}</Typography>
                 </>
               )}
 
-              {hoveredPoint.label && (
+              {activeHoveredPoint.label && (
                 <>
                   <Typography variant="caption" sx={{ color: gcpPalette.neutral.textSecondary, fontWeight: 500 }}>Key/Tag:</Typography>
                   <Typography variant="caption" sx={{ fontFamily: 'Roboto Mono, monospace', wordBreak: 'break-all' }}>
-                    {hoveredPoint.label}
+                    {activeHoveredPoint.label}
                   </Typography>
                 </>
               )}
             </Box>
 
-            {hoveredPoint.text && (
+            {activeHoveredPoint.text && (
               <Box sx={{ p: 0.75, backgroundColor: '#f8f9fa', borderRadius: '4px', mb: 1, maxHeight: 60, overflow: 'hidden' }}>
                 <Typography variant="caption" sx={{ fontFamily: 'Roboto Mono, monospace', fontSize: '0.7rem', color: '#3c4043', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {hoveredPoint.text}
+                  {activeHoveredPoint.text}
                 </Typography>
               </Box>
             )}

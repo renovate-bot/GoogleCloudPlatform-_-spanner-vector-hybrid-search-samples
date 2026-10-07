@@ -228,7 +228,17 @@ class GcpDiscoveryService:
     def test_connection(self, project_id: str, instance_id: str, database_id: str) -> Dict[str, Any]:
         """
         Executes a lightweight test query against the Spanner database.
+        Prefers direct Spanner client; falls back to gcloud if needed.
         """
+        try:
+            from .spanner_direct_service import SpannerDirectService
+            direct_service = SpannerDirectService()
+            res = direct_service.test_connection(project_id, instance_id, database_id)
+            if res.get("success"):
+                return res
+        except Exception as e:
+            logger.debug(f"Direct Spanner client connection test failed, trying gcloud: {e}")
+
         clean_project_id = project_id.strip().split("/")[-1]
         clean_instance_id = instance_id.strip().split("/")[-1]
         clean_database_id = database_id.strip().split("/")[-1]
@@ -273,9 +283,27 @@ class GcpDiscoveryService:
         log_callback=None
     ) -> List[Dict[str, Any]]:
         """
-        Executes all introspection queries via gcloud against the Spanner database
-        and exports them as CSVs into staging_dir.
+        Executes all introspection queries against the Spanner database and exports them
+        as CSVs into staging_dir.
+        Prefers direct Spanner client (streaming API without 10 MiB limit); falls back to gcloud.
         """
+        # 1. Direct Spanner client using ExecuteStreamingSql
+        try:
+            from .spanner_direct_service import SpannerDirectService
+            direct_service = SpannerDirectService()
+            return direct_service.export_database_to_staging(
+                project_id=project_id,
+                instance_id=instance_id,
+                database_id=database_id,
+                dialect=dialect,
+                staging_dir=staging_dir,
+                log_callback=log_callback
+            )
+        except Exception as e:
+            logger.warning(f"Direct Spanner export failed: {e}. Falling back to gcloud CLI...", exc_info=True)
+            if log_callback:
+                log_callback(f"⚠️ Direct Spanner export could not be used: {e}. Falling back to gcloud CLI...")
+
         clean_project_id = project_id.strip().split("/")[-1]
         clean_instance_id = instance_id.strip().split("/")[-1]
         clean_database_id = database_id.strip().split("/")[-1]

@@ -232,7 +232,11 @@ class DuckDBService:
     def get_distinct_intervals(self, table_name: str, utc_offset: float = 0.0) -> List[Dict[str, str]]:
         """Returns distinct interval_end timestamps formatted for display and UTC."""
         with self._get_connection() as conn:
-            columns_df = conn.execute(f"DESCRIBE {table_name}").fetchdf()
+            total_rows = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0]
+            if total_rows == 0:
+                return []
+
+            columns_df = conn.execute(f'DESCRIBE "{table_name}"').fetchdf()
             interval_col = None
             for col in columns_df['column_name']:
                 if col.lower() == 'interval_end':
@@ -242,7 +246,7 @@ class DuckDBService:
             if not interval_col:
                 return []
 
-            query = f"SELECT DISTINCT strftime({interval_col}, '%Y-%m-%d %H:%M:%S') AS raw_ts FROM {table_name} WHERE {interval_col} IS NOT NULL ORDER BY raw_ts DESC"
+            query = f'SELECT DISTINCT strftime(TRY_CAST("{interval_col}" AS TIMESTAMP), \'%Y-%m-%d %H:%M:%S\') AS raw_ts FROM "{table_name}" WHERE "{interval_col}" IS NOT NULL AND TRY_CAST("{interval_col}" AS TIMESTAMP) IS NOT NULL ORDER BY raw_ts DESC'
             result_df = conn.execute(query).fetchdf()
 
             timestamps: List[Dict[str, str]] = []
@@ -266,7 +270,11 @@ class DuckDBService:
     def get_interval_histogram(self, table_name: str, utc_offset: float = 0.0) -> List[Dict[str, Any]]:
         """Returns time-series histogram buckets with record counts per interval_end."""
         with self._get_connection() as conn:
-            columns_df = conn.execute(f"DESCRIBE {table_name}").fetchdf()
+            total_rows = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0]
+            if total_rows == 0:
+                return []
+
+            columns_df = conn.execute(f'DESCRIBE "{table_name}"').fetchdf()
             interval_col = None
             for col in columns_df['column_name']:
                 if col.lower() == 'interval_end':
@@ -278,12 +286,12 @@ class DuckDBService:
 
             query = f"""
             SELECT 
-              strftime({interval_col}, '%Y-%m-%d %H:%M:%S') AS raw_ts,
+              strftime(TRY_CAST("{interval_col}" AS TIMESTAMP), '%Y-%m-%d %H:%M:%S') AS raw_ts,
               COUNT(*) AS record_count
-            FROM {table_name}
-            WHERE {interval_col} IS NOT NULL
-            GROUP BY {interval_col}
-            ORDER BY {interval_col} ASC
+            FROM "{table_name}"
+            WHERE "{interval_col}" IS NOT NULL AND TRY_CAST("{interval_col}" AS TIMESTAMP) IS NOT NULL
+            GROUP BY 1
+            ORDER BY 1 ASC
             """
 
             result_df = conn.execute(query).fetchdf()
@@ -875,6 +883,22 @@ class DuckDBService:
                     "title": "Lock Outliers: Wait Count vs Total Wait Time"
                 }
 
+            # Split Stats
+            if 'SPLIT' in table_upper:
+                x_col = cols.get('CPU_USAGE_SCORE') or (numeric_cols[0] if numeric_cols else None)
+                other_numeric = [c for c in numeric_cols if c != x_col]
+                y_col = other_numeric[0] if other_numeric else (numeric_cols[0] if numeric_cols else None)
+                size_col = cols.get('CPU_USAGE_SCORE') or (numeric_cols[1] if len(numeric_cols) > 1 else None)
+                label_col = cols.get('SPLIT_START') or cols.get('SPLIT_LIMIT') or cols.get('AFFECTED_TABLES')
+                return {
+                    "numeric_cols": numeric_cols,
+                    "x_col": x_col,
+                    "y_col": y_col,
+                    "size_col": size_col,
+                    "label_col": label_col,
+                    "title": "Split Stats Outliers: Key Range vs CPU Usage"
+                }
+
             # Generic fallback
             x_col = numeric_cols[0] if len(numeric_cols) > 0 else None
             y_col = numeric_cols[1] if len(numeric_cols) > 1 else (numeric_cols[0] if numeric_cols else None)
@@ -904,6 +928,10 @@ class DuckDBService:
     ) -> List[Dict[str, Any]]:
         """Queries table for 2D/3D scatter plot outlier data points with pushdown filtering."""
         with self._get_connection() as conn:
+            total_rows = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0]
+            if total_rows == 0:
+                return []
+
             columns_df = conn.execute(f"DESCRIBE {table_name}").fetchdf()
             col_names = columns_df['column_name'].tolist()
             col_map = {c.lower(): c for c in col_names}
@@ -919,33 +947,33 @@ class DuckDBService:
                 return []
 
             select_parts = [
-                f"CAST({real_x} AS DOUBLE) AS x_val",
-                f"CAST({real_y} AS DOUBLE) AS y_val",
+                f'TRY_CAST("{real_x}" AS DOUBLE) AS x_val',
+                f'TRY_CAST("{real_y}" AS DOUBLE) AS y_val',
             ]
 
             if real_size:
-                select_parts.append(f"CAST({real_size} AS DOUBLE) AS size_val")
+                select_parts.append(f'TRY_CAST("{real_size}" AS DOUBLE) AS size_val')
             else:
                 select_parts.append("1.0 AS size_val")
 
             if real_label:
-                select_parts.append(f"CAST({real_label} AS VARCHAR) AS label_val")
+                select_parts.append(f'CAST("{real_label}" AS VARCHAR) AS label_val')
             else:
                 select_parts.append("'' AS label_val")
 
             if real_text:
-                select_parts.append(f"CAST({real_text} AS VARCHAR) AS text_val")
+                select_parts.append(f'CAST("{real_text}" AS VARCHAR) AS text_val')
             else:
                 select_parts.append("'' AS text_val")
 
             if real_interval:
-                select_parts.append(f"CAST({real_interval} AS VARCHAR) AS interval_val")
+                select_parts.append(f'CAST("{real_interval}" AS VARCHAR) AS interval_val')
             else:
                 select_parts.append("'' AS interval_val")
 
             where_conditions = [
-                f"{real_x} IS NOT NULL",
-                f"{real_y} IS NOT NULL",
+                f'TRY_CAST("{real_x}" AS DOUBLE) IS NOT NULL',
+                f'TRY_CAST("{real_y}" AS DOUBLE) IS NOT NULL',
             ]
             params: List[Any] = []
 

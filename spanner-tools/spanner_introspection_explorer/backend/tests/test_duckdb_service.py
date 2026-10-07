@@ -255,4 +255,42 @@ def test_null_and_other_filtering(tmp_path):
     assert res_empty_not_in["total"] == 5
 
 
+def test_empty_table_timeline_and_scatter(tmp_path):
+    """
+    Verifies that empty tables (0 data rows, all columns inferred as VARCHAR by read_csv_auto)
+    do not crash with BinderException in timeline, intervals, or scatter queries.
+    """
+    csv_file = tmp_path / "export_all_SPLIT_STATS_TOP_MINUTE.csv"
+    csv_file.write_text("interval_end,split_start,split_limit,cpu_usage_score,affected_tables,unsplittable_reasons\n")
+
+    db_file = str(tmp_path / "test_empty_split.db")
+    con = duckdb.connect(db_file)
+    con.execute(f"CREATE TABLE SPLIT_STATS_TOP_MINUTE AS SELECT * FROM read_csv_auto('{csv_file.as_posix()}', header=True)")
+    con.close()
+
+    svc = DuckDBService(db_file)
+
+    # 1. Timeline histogram should return [] instead of 500 error
+    timeline = svc.get_interval_histogram("SPLIT_STATS_TOP_MINUTE")
+    assert timeline == []
+
+    # 2. Distinct intervals should return [] instead of 500 error
+    intervals = svc.get_distinct_intervals("SPLIT_STATS_TOP_MINUTE")
+    assert intervals == []
+
+    # 3. Scatter defaults should return valid structure
+    defaults = svc.get_scatter_defaults("SPLIT_STATS_TOP_MINUTE")
+    assert "numeric_cols" in defaults
+    assert "title" in defaults
+
+    # 4. Scatter data should return [] safely
+    scatter = svc.get_scatter_data("SPLIT_STATS_TOP_MINUTE", "cpu_usage_score", "cpu_usage_score")
+    assert scatter == []
+
+    # 5. Query table should return 0 items without error
+    query_res = svc.query_table("SPLIT_STATS_TOP_MINUTE")
+    assert query_res["total"] == 0
+    assert query_res["items"] == []
+
+
 
