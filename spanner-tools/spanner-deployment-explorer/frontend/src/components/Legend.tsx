@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import L from 'leaflet';
 import { Box, Paper, Typography, Divider, Stack, IconButton, Tooltip, Collapse } from '@mui/material';
 import LayersIcon from '@mui/icons-material/Layers';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -89,11 +90,25 @@ export interface LegendProps {
 
 export const Legend: React.FC<LegendProps> = ({ onClose }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const legendRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (legendRef.current) {
+      L.DomEvent.disableClickPropagation(legendRef.current);
+      L.DomEvent.disableScrollPropagation(legendRef.current);
+    }
+  }, []);
   const [rolesExpanded, setRolesExpanded] = useState<boolean>(true);
   const [linksExpanded, setLinksExpanded] = useState<boolean>(true);
 
   return (
     <Paper
+      ref={legendRef}
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
       elevation={2}
       sx={{
         p: 1.25,
@@ -104,6 +119,7 @@ export const Legend: React.FC<LegendProps> = ({ onClose }) => {
         minWidth: 190,
         maxWidth: 220,
         transition: 'all 0.2s ease',
+        pointerEvents: 'auto',
       }}
     >
       {/* Legend Card Header */}

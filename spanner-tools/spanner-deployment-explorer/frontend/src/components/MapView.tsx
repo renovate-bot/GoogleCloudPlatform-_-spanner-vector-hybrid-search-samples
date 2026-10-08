@@ -259,6 +259,15 @@ export const MapView: React.FC<MapViewProps> = ({
   const [showLegend, setShowLegend] = useState<boolean>(true);
   const [showOptionalReplicas, setShowOptionalReplicas] = useState<boolean>(true);
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
+  const controlsToolbarRef = useRef<HTMLDivElement | null>(null);
+
+  // Disable map click/scroll propagation on floating controls toolbar so interactions do not drag or zoom the map
+  useEffect(() => {
+    if (controlsToolbarRef.current) {
+      L.DomEvent.disableClickPropagation(controlsToolbarRef.current);
+      L.DomEvent.disableScrollPropagation(controlsToolbarRef.current);
+    }
+  }, []);
 
   const nodes: TopologyNode[] = visualization?.nodes || [];
   const links: TopologyLink[] = visualization?.links || [];
@@ -901,16 +910,24 @@ export const MapView: React.FC<MapViewProps> = ({
           flexDirection: 'column',
           gap: 1,
           alignItems: 'flex-end',
+          pointerEvents: 'none',
         }}
       >
         <Paper
+          ref={controlsToolbarRef}
           elevation={2}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
           sx={{
             p: 1,
             backgroundColor: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(4px)',
             border: '1px solid #dadce0',
             borderRadius: 2,
+            pointerEvents: 'auto',
           }}
         >
           <Stack spacing={1}>
