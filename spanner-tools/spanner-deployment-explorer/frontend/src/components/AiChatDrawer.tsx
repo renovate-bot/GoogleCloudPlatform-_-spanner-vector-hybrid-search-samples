@@ -63,6 +63,7 @@ interface AiChatDrawerProps {
     benchmark_description?: string;
     operations?: number;
     staleness_seconds?: number;
+    optional_replicas?: string[];
   }) => void;
 }
 
@@ -70,7 +71,7 @@ const INITIAL_GREETING: AiChatMessage = {
   id: 'init-1',
   role: 'assistant',
   content:
-    "👋 Hello! I am your **Cloud Spanner Architecture & Benchmark Assistant**.\n\n" +
+    "👋 Hello! I am your **Cloud Spanner Architecture & Benchmark Assistant (Experimental)**.\n\n" +
     "I can help you:\n" +
     "- **Design & configure benchmarks**: e.g., *'I want to measure latency for eur3 with clients in the leader and US read-only regions.'*\n" +
     "- **Calculate node sizing**: e.g., *'I need to be able to have 20k writes/sec in eur3.'*\n" +
@@ -355,6 +356,7 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
         benchmark_description: res.benchmark_description,
         operations: res.operations,
         staleness_seconds: res.staleness_seconds,
+        optional_replicas: res.optional_replicas,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -363,6 +365,13 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
       if (res.action === 'update_sizing' && res.nodes) {
         const targetCfg = res.spanner_config || currentContext?.selected_config || 'eur3';
         onApplySizing(targetCfg, res.nodes);
+        if (res.optional_replicas !== undefined && res.spanner_config) {
+          onApplyBenchmark({
+            spanner_config: res.spanner_config,
+            nodes: res.nodes,
+            optional_replicas: res.optional_replicas,
+          });
+        }
         setAppliedActions((prev) => ({ ...prev, [aiMsg.id]: true }));
       } else if (res.action === 'configure_benchmark' || res.action === 'configure_and_size') {
         if (res.nodes && res.spanner_config) {
@@ -377,6 +386,7 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
           benchmark_description: res.benchmark_description,
           operations: res.operations,
           staleness_seconds: res.staleness_seconds,
+          optional_replicas: res.optional_replicas,
         });
         setAppliedActions((prev) => ({ ...prev, [aiMsg.id]: true }));
       }
@@ -782,9 +792,24 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
             <AutoAwesomeIcon sx={{ fontSize: 18 }} />
           </Box>
           <Box>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e1b4b', fontSize: '0.9rem', lineHeight: 1.2 }}>
-              Spanner AI Assistant
-            </Typography>
+            <Stack direction="row" spacing={0.75} alignItems="center">
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1e1b4b', fontSize: '0.9rem', lineHeight: 1.2 }}>
+                Spanner AI Assistant
+              </Typography>
+              <Chip
+                label="Experimental"
+                size="small"
+                sx={{
+                  height: 16,
+                  fontSize: '0.62rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  backgroundColor: '#fef3c7',
+                  color: '#b45309',
+                  border: '1px solid #fde68a',
+                }}
+              />
+            </Stack>
             <Typography variant="caption" sx={{ color: '#7c3aed', fontWeight: 600, fontSize: '0.7rem' }}>
               {model}
             </Typography>
@@ -936,6 +961,14 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
                         <strong>Clients ({m.client_regions.length}):</strong> {m.client_regions.join(', ')}
                       </Typography>
                     )}
+                    {m.optional_replicas !== undefined && (
+                      <Typography variant="caption" sx={{ display: 'block', color: '#0369a1', mt: 0.2, fontWeight: 500 }}>
+                        <strong>Optional Replicas:</strong>{' '}
+                        {m.optional_replicas.length > 0
+                          ? `${m.optional_replicas.join(', ')} (${m.optional_replicas.length} active, others pruned)`
+                          : 'None (all optional replicas deselected)'}
+                      </Typography>
+                    )}
                     <Button
                       size="small"
                       variant="contained"
@@ -953,6 +986,7 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
                           benchmark_description: m.benchmark_description,
                           operations: m.operations,
                           staleness_seconds: m.staleness_seconds,
+                          optional_replicas: m.optional_replicas,
                         });
                         setAppliedActions((prev) => ({ ...prev, [m.id]: true }));
                       }}
@@ -1156,6 +1190,19 @@ export const AiChatDrawer: React.FC<AiChatDrawerProps> = ({
             ⚠️ {transcribeError}
           </Typography>
         )}
+        <Typography
+          variant="caption"
+          sx={{
+            display: 'block',
+            textAlign: 'center',
+            color: '#64748b',
+            fontSize: '0.68rem',
+            mt: 0.75,
+            lineHeight: 1.3,
+          }}
+        >
+          AI Assistant is experimental. Latency descriptions are qualitative architectural estimates; measure empirical performance via benchmarks.
+        </Typography>
       </Box>
     </Box>
   );

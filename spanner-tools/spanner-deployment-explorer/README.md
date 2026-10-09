@@ -100,9 +100,9 @@ Open **[http://127.0.0.1:8080](http://127.0.0.1:8080)**. When configuring a benc
 
 ---
 
-### 3. Topology Explorer + Benchmarking + AI
+### 3. Topology Explorer + Benchmarking + AI (Experimental)
 
-Everything in Mode 2, plus an embedded Google Gemini AI Assistant for natural language sizing calculations, benchmark scenario preparation, and architecture Q&A.
+Everything in Mode 2, plus an embedded Google Gemini AI Assistant (Experimental) for natural language sizing calculations, benchmark scenario preparation, and architecture Q&A.
 
 #### Configuration (`config.json`)
 Default settings in `config.json`:
@@ -169,7 +169,7 @@ Application configuration is loaded from `config.json` at the root of the reposi
 | `allow_dry_run` | `boolean` | `false` | `ALLOW_DRY_RUN` | Enables simulated physics-based benchmarking for local UI testing without GCP provisioning. |
 | `allow_multiple_selections` | `boolean` | `false` | `ALLOW_MULTIPLE_SELECTIONS` | Enables selecting and comparing multiple Spanner configurations simultaneously on the map. |
 | `enable_edge_latency` | `boolean` | `true` | `ENABLE_EDGE_LATENCY` | Renders edge latencies and distance metrics on topology connection lines. |
-| `enable_ai` | `boolean` | `true` | `ENABLE_AI` | Enables the Spanner AI Assistant chat drawer and endpoints. |
+| `enable_ai` | `boolean` | `true` | `ENABLE_AI` | Enables the Spanner AI Assistant (Experimental) chat drawer and endpoints. |
 
 ### Benchmark Settings (`load_testing`)
 

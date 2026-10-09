@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field
 from app.core.config import get_settings
 from app.services.ai_service import AIService
 
-router = APIRouter(prefix="/ai", tags=["AI Assistant"])
+router = APIRouter(prefix="/ai", tags=["AI Assistant (Experimental)"])
 
 
 class ChatMessage(BaseModel):

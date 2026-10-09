@@ -180,6 +180,7 @@ const AppContent: React.FC = () => {
     benchmark_description?: string;
     operations?: number;
     staleness_seconds?: number;
+    optional_replicas?: string[];
   }) => {
     if (data.spanner_config) {
       setSelectedConfigs([data.spanner_config]);
@@ -188,6 +189,12 @@ const AppContent: React.FC = () => {
       }
       if (data.nodes) {
         handleNodesChange(data.spanner_config, data.nodes);
+      }
+      if (data.optional_replicas !== undefined) {
+        setSelectedOptionalReplicasMap((prev) => ({
+          ...prev,
+          [data.spanner_config!]: data.optional_replicas!,
+        }));
       }
     }
     if (data.client_regions && data.client_regions.length > 0) {
@@ -530,7 +537,23 @@ const AppContent: React.FC = () => {
                   },
                 }}
               >
-                AI Assistant
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                  <span>AI Assistant</span>
+                  <Chip
+                    label="Experimental"
+                    size="small"
+                    sx={{
+                      height: 16,
+                      fontSize: '0.62rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      backgroundColor: aiDrawerOpen ? 'rgba(255, 255, 255, 0.25)' : '#fef3c7',
+                      color: aiDrawerOpen ? '#ffffff' : '#b45309',
+                      border: aiDrawerOpen ? '1px solid rgba(255, 255, 255, 0.4)' : '1px solid #fde68a',
+                      cursor: 'pointer',
+                    }}
+                  />
+                </Stack>
               </Button>
             )}
 

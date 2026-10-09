@@ -34,6 +34,7 @@ export interface AiChatMessage {
   benchmark_description?: string;
   operations?: number;
   staleness_seconds?: number;
+  optional_replicas?: string[];
 }
 
 export interface AiStatusResponse {
@@ -67,4 +68,5 @@ export interface AiChatResponse {
   benchmark_description?: string;
   operations?: number;
   staleness_seconds?: number;
+  optional_replicas?: string[];
 }

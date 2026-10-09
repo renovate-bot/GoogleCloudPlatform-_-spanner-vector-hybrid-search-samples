@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pathlib import Path
 import math
 import json
 import logging
@@ -31,10 +32,30 @@ from app.services.spanner_service import SpannerService
 logger = logging.getLogger(__name__)
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
 
 
 class AIService:
     _instance: Optional["AIService"] = None
+    _prompt_cache: Dict[str, str] = {}
+
+    @classmethod
+    def load_prompt_template(cls, template_name: str) -> str:
+        """Loads and caches a markdown prompt template from the backend/app/prompts directory."""
+        if template_name in cls._prompt_cache:
+            return cls._prompt_cache[template_name]
+
+        template_file = PROMPTS_DIR / template_name
+        if template_file.exists():
+            try:
+                content = template_file.read_text(encoding="utf-8").strip()
+                cls._prompt_cache[template_name] = content
+                return content
+            except Exception as e:
+                logger.error(f"Failed to read prompt template {template_file}: {e}")
+
+        logger.warning(f"Prompt template {template_name} not found at {template_file}")
+        return ""
 
     def __init__(
         self,
@@ -176,19 +197,7 @@ class AIService:
             "gemini-flash-latest",
         ]
 
-        transcription_instruction = (
-            "You are a specialized audio transcriber for Google Cloud and Cloud Spanner.\n"
-            "Task: Listen to the audio and transcribe the user's spoken words verbatim.\n"
-            "Accurately recognize Google Cloud Spanner terminology:\n"
-            "- Configuration names: e.g. eur3, eur5, eur6, nam3, nam6, dual-region-germany1, regional-europe-west1\n"
-            "- Region codes: e.g. europe-west1, europe-west3, europe-west4, europe-west10, us-central1, us-east1\n"
-            "- Metrics & units: writes/sec, reads/sec, throughput, SLA, 99.999%\n"
-            "- Topology terms: leader, replica, read-only, witness, quorum\n"
-            "Rules:\n"
-            "- Output ONLY the transcription.\n"
-            "- Do not wrap in quotes or code fences.\n"
-            "- Do not add explanations, conversational filler, or introductory remarks.\n"
-        )
+        transcription_instruction = self.load_prompt_template("transcribe_instruction.md")
 
         payload = {
             "system_instruction": {
@@ -295,46 +304,12 @@ class AIService:
         models_to_try = [primary_model] + [m for m in fallback_models if m != primary_model]
 
         grounding = self.get_grounding_context()
+        ui_state_json = json.dumps(current_context or {})
 
+        prompt_template = self.load_prompt_template("system_instruction.md")
         system_instruction = (
-            "You are the expert Cloud Spanner Architecture & Benchmark Assistant for the Cloud Spanner Deployment Explorer.\n"
-            "Your duties:\n"
-            "1. Help users design, size, and configure Cloud Spanner instances and latency benchmark scenarios.\n"
-            "2. When a user requests a benchmark scenario (e.g. 'measure latency for eur3 with clients in leader and US RO regions'):\n"
-            "   - Cross-reference the ground truth configs. Notice which configs have the requested replica layout (e.g. eur5 has leader in europe-west2 and read-only replicas in us-central1 and us-east1).\n"
-            "   - Output a helpful explanation in markdown, and trigger the 'configure_benchmark' action with the spanner_config, leader_region, and client_regions.\n"
-            "   - Never auto-launch tests; the user will review the configuration in the UI.\n"
-            "3. When a user requests sizing or throughput (e.g. 'I need 20k writes/sec' or '100k reads/sec'):\n"
-            "   - Calculate the exact node count using Spanner capacity:\n"
-            "     * Multi-Region: 2,700 writes/sec & 15,000 reads/sec per node (e.g. 20k writes -> ceil(20000/2700) = 8 nodes).\n"
-            "     * Regional: 3,500 writes/sec & 22,500 reads/sec per node (e.g. 20k writes -> ceil(20000/3500) = 6 nodes).\n"
-            "   - Trigger 'update_sizing' (or combined 'configure_and_size') action with the computed nodes count so the calculator updates automatically.\n"
-            "4. Multi-turn clarification: If the user query is ambiguous (e.g. 'test latency in Europe'), ask whether they want regional or multi-region, present options (eur3, eur5, etc.), and ask for client placement.\n"
-            "5. General Spanner questions: Provide deep architectural advice (SLAs, 99.999% multi-region vs 99.99% regional, quorum layouts, witness behavior).\n"
-            "6. STRICT DOMAIN GUARDRAILS:\n"
-            "   - You ONLY discuss Cloud Spanner, Google Cloud regions, latency topologies, sizing calculations, and benchmark scenarios.\n"
-            "   - Politely decline any off-topic questions (cooking, poetry, non-Spanner programming, jokes, sports, general knowledge) with:\n"
-            "     'I am your Cloud Spanner Architecture & Benchmark Assistant. I can only assist with Cloud Spanner topologies, node sizing calculations, and latency benchmark configurations.'\n"
-            "7. STRICT FORMATTING & READABILITY RULES:\n"
-            "   - Output clean, human-friendly Markdown ONLY.\n"
-            "   - NEVER use LaTeX mathematical notation or dollar signs (do NOT output $, $$, \\text, \\mathbf, \\div, \\times, \\implies, \\lceil, etc.).\n"
-            "   - Always write all calculations and arithmetic in plain conversational text with standard characters (e.g., '50,000 / 2,700 = 18.52 -> 19 nodes' or '19 * 15,000 = 285,000 reads/sec').\n\n"
-            f"=== SPANNER GROUND TRUTH KNOWLEDGE ===\n{grounding}\n\n"
-            f"=== CURRENT UI STATE ===\n{json.dumps(current_context or {})}\n\n"
-            "=== OUTPUT FORMAT ===\n"
-            "You MUST respond ONLY with a valid JSON object matching this schema:\n"
-            "{\n"
-            '  "message": "Your response to the user in markdown formatting.",\n'
-            '  "action": "none" | "update_sizing" | "configure_benchmark" | "configure_and_size",\n'
-            '  "spanner_config": "eur3", // optional, string configname\n'
-            '  "leader_region": "europe-west1", // optional, string leader region\n'
-            '  "nodes": 8, // optional integer node count for sizing calculator\n'
-            '  "client_regions": ["europe-west1", "us-central1"], // optional array of client region strings\n'
-            '  "benchmark_name": "Benchmark Name", // optional string\n'
-            '  "benchmark_description": "Benchmark Description", // optional string\n'
-            '  "operations": 1000, // optional integer\n'
-            '  "staleness_seconds": 15 // optional integer\n'
-            "}\n"
+            prompt_template.replace("{{GROUNDING_CONTEXT}}", grounding)
+            .replace("{{CURRENT_CONTEXT}}", ui_state_json)
         )
 
         contents = []
@@ -400,11 +375,30 @@ class AIService:
                                     action_match = re.search(r'"action"\s*:\s*"([^"]+)"', raw_text)
                                     cfg_match = re.search(r'"spanner_config"\s*:\s*"([^"]+)"', raw_text)
                                     nodes_match = re.search(r'"nodes"\s*:\s*(\d+)', raw_text)
+                                    opt_match = re.search(r'"optional_replicas"\s*:\s*(\[[^\]]*\])', raw_text)
+                                    clients_match = re.search(r'"client_regions"\s*:\s*(\[[^\]]*\])', raw_text)
+                                    
+                                    parsed_opt = None
+                                    if opt_match:
+                                        try:
+                                            parsed_opt = json.loads(opt_match.group(1))
+                                        except Exception:
+                                            pass
+
+                                    parsed_clients = None
+                                    if clients_match:
+                                        try:
+                                            parsed_clients = json.loads(clients_match.group(1))
+                                        except Exception:
+                                            pass
+
                                     parsed = {
                                         "message": msg_match.group(1).encode().decode('unicode_escape') if msg_match else raw_text,
                                         "action": action_match.group(1) if action_match else "none",
                                         "spanner_config": cfg_match.group(1) if cfg_match else None,
                                         "nodes": int(nodes_match.group(1)) if nodes_match else None,
+                                        "client_regions": parsed_clients,
+                                        "optional_replicas": parsed_opt,
                                     }
 
                             if isinstance(parsed, dict) and "message" in parsed:

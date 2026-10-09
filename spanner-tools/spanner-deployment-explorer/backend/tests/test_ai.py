@@ -95,6 +95,21 @@ def test_ai_grounding_context_content():
     assert "3,500 writes/sec" in context
 
 
+def test_load_prompt_template_and_files_exist():
+    """Verifies that prompt markdown files exist on disk and load correctly."""
+    service = AIService.get_instance()
+    system_prompt = service.load_prompt_template("system_instruction.md")
+    assert len(system_prompt) > 0
+    assert "Cloud Spanner Architecture & Benchmark Assistant (Experimental)" in system_prompt
+    assert "{{GROUNDING_CONTEXT}}" in system_prompt
+    assert "{{CURRENT_CONTEXT}}" in system_prompt
+    assert "DO NOT MAKE BOLD OR SPECULATIVE LATENCY CLAIMS" in system_prompt
+
+    transcribe_prompt = service.load_prompt_template("transcribe_instruction.md")
+    assert len(transcribe_prompt) > 0
+    assert "audio transcriber for Google Cloud and Cloud Spanner" in transcribe_prompt
+
+
 def test_gemini_key_lifecycle():
     """Verifies saving, reading, and deleting gemini.key."""
     assert get_gemini_api_key() is None
@@ -162,7 +177,8 @@ async def test_ai_service_chat_gemini_parsing():
                                 '  "leader_region": "europe-west2",\n'
                                 '  "nodes": 8,\n'
                                 '  "client_regions": ["europe-west2", "us-central1", "us-east1"],\n'
-                                '  "benchmark_name": "Benchmark (eur5 - US RO & Leader)"\n'
+                                '  "benchmark_name": "Benchmark (eur5 - US RO & Leader)",\n'
+                                '  "optional_replicas": ["us-east1"]\n'
                                 '}'
                             )
                         }
@@ -182,6 +198,101 @@ async def test_ai_service_chat_gemini_parsing():
         assert res["spanner_config"] == "eur5"
         assert res["nodes"] == 8
         assert "europe-west2" in res["client_regions"]
+        assert res["optional_replicas"] == ["us-east1"]
+
+
+@pytest.mark.asyncio
+async def test_ai_system_instruction_optional_replicas_pruning():
+    """Verifies that the Gemini system instruction instructs pruning of optional read-only replicas."""
+    service = AIService.get_instance()
+    mock_gemini_response = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [{"text": '{"message": "ok", "action": "none"}'}]
+                }
+            }
+        ]
+    }
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = Response(200, json=mock_gemini_response)
+        await service.chat(
+            messages=[{"role": "user", "content": "Configure nam3"}],
+            api_key_override="AIzaSyMockKey",
+        )
+        assert mock_post.called
+        call_json = mock_post.call_args[1]["json"]
+        system_instruction = call_json["system_instruction"]["parts"][0]["text"]
+
+        assert "optional read-only replicas" in system_instruction
+        assert "optional_replicas" in system_instruction
+        assert "pruned" in system_instruction or "deselected" in system_instruction
+
+
+@pytest.mark.asyncio
+async def test_ai_service_chat_fallback_regex_optional_replicas():
+    """Verifies regex fallback parsing correctly extracts optional_replicas and client_regions."""
+    service = AIService.get_instance()
+    malformed_json_text = (
+        'Here is the result:\n'
+        '{\n'
+        '  "message": "Selecting nam3 with US East read replica only.",\n'
+        '  "action": "configure_benchmark",\n'
+        '  "spanner_config": "nam3",\n'
+        '  "nodes": 5,\n'
+        '  "client_regions": ["us-east4", "us-east1"],\n'
+        '  "optional_replicas": ["us-west1", "us-east5"]\n'
+        '// broken trailing json'
+    )
+    mock_gemini_response = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [{"text": malformed_json_text}]
+                }
+            }
+        ]
+    }
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = Response(200, json=mock_gemini_response)
+        res = await service.chat(
+            messages=[{"role": "user", "content": "nam3 with US read replica"}],
+            api_key_override="AIzaSyMockKey",
+        )
+        assert res["action"] == "configure_benchmark"
+        assert res["spanner_config"] == "nam3"
+        assert res["nodes"] == 5
+        assert res["client_regions"] == ["us-east4", "us-east1"]
+        assert res["optional_replicas"] == ["us-west1", "us-east5"]
+
+
+@pytest.mark.asyncio
+async def test_ai_system_instruction_experimental_and_latency_guardrails():
+    """Verifies that the Gemini system instruction explicitly flags experimental status and forbids bold latency claims."""
+    service = AIService.get_instance()
+    mock_gemini_response = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [{"text": '{"message": "ok", "action": "none"}'}]
+                }
+            }
+        ]
+    }
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = Response(200, json=mock_gemini_response)
+        await service.chat(
+            messages=[{"role": "user", "content": "What is the latency?"}],
+            api_key_override="AIzaSyMockKey",
+        )
+        assert mock_post.called
+        call_json = mock_post.call_args[1]["json"]
+        system_instruction = call_json["system_instruction"]["parts"][0]["text"]
+
+        assert "Experimental" in system_instruction
+        assert "Strict Latency & Performance Claims Guardrail" in system_instruction
+        assert "DO NOT MAKE BOLD OR SPECULATIVE LATENCY CLAIMS" in system_instruction
+        assert "DO NOT USE SPECIFIC NUMBERS" in system_instruction
 
 
 @pytest.mark.asyncio

@@ -117,6 +117,19 @@ export const AiKeyDialog: React.FC<AiKeyDialogProps> = ({
           <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1.05rem' }}>
             Spanner AI Assistant Configuration
           </Typography>
+          <Chip
+            label="Experimental"
+            size="small"
+            sx={{
+              height: 18,
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              backgroundColor: '#fef3c7',
+              color: '#b45309',
+              border: '1px solid #fde68a',
+            }}
+          />
         </Stack>
         <IconButton size="small" onClick={onClose}>
           <CloseIcon fontSize="small" />
